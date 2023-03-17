@@ -1,12 +1,14 @@
+import { useState } from 'react'
 import { Box, Button, Input, InputGroup, InputRightAddon, VStack } from '@chakra-ui/react'
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
+import { readContract } from '@wagmi/core'
 import { harmonyOne } from '@wagmi/core/chains'
 import { MetaMaskConnector } from '@wagmi/core/connectors/metaMask'
 import debounce from 'lodash/debounce'
-import * as CONFIG from '~/config'
-import { baseRegistrar, nameWrapper } from './helpers/contracts'
 import { getUnwrappedTokenId, getWrappedTokenId } from './helpers/tokenId'
-import { useEffect } from 'react'
+import * as CONFIG from '~/config'
+import { Meta } from './types'
+import Domain from './components/Domain'
 
 const App = () => {
   const { address, isConnected } = useAccount()
@@ -16,21 +18,37 @@ const App = () => {
     }),
   })
   const { disconnect } = useDisconnect()
+  const [tokenMeta, setTokenMeta] = useState<Meta>()
 
   const handleDomainChange = debounce(async e => {
+    let tokenUri: string
     const unwrappedTokenId = getUnwrappedTokenId(e.target.value)
 
-    const owner = await baseRegistrar.functions.ownerOf(unwrappedTokenId)
-    const wrapped = owner === CONFIG.nameWrapperAddress
+    const owner = await readContract({
+      ...CONFIG.baseRegistrarContract,
+      functionName: 'ownerOf',
+      args: [unwrappedTokenId]
+    })
+
+    const wrapped = owner === CONFIG.nameWrapperContract.address
 
     if (wrapped) {
       const wrappedTokenId = getWrappedTokenId(e.target.value)
-      const tokenUri = await nameWrapper.tokenURI(wrappedTokenId)
-      console.log(tokenUri)
+      tokenUri = await readContract({
+        ...CONFIG.nameWrapperContract,
+        functionName: 'uri',
+        args: [wrappedTokenId]
+      }) as string
     } else {
-      const tokenUri = await baseRegistrar.tokenURI(unwrappedTokenId)
-      console.log(tokenUri)
+      tokenUri = await readContract({
+        ...CONFIG.baseRegistrarContract,
+        functionName: 'tokenURI',
+        args: [unwrappedTokenId]
+      }) as string
     }
+
+    const meta: Meta = await fetch(tokenUri).then(res => res.json())
+    setTokenMeta(meta)
   }, 500)
 
   if (!isConnected) {
@@ -48,6 +66,10 @@ const App = () => {
         <Input placeholder='Second level domain' onChange={handleDomainChange} />
         <InputRightAddon children={`.${CONFIG.tld}`} />
       </InputGroup>
+
+      {tokenMeta && (
+        <Domain meta={tokenMeta} />
+      )}
     </VStack>
   )
 }
