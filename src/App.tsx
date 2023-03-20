@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState } from 'react'
 import {
   Box,
   Button,
@@ -27,10 +27,33 @@ import * as CONFIG from '~/config'
 import { Meta } from '~/types'
 import Domain from './components/Domain'
 
-enum Error {
+enum RequestStatus {
   OK = 0,
-  NO_TOKEN = 'The domain token doesn\'t not exist your you are not owner of it',
-  NO_URI = 'Token URI doesn\'t exist'
+  PENDING = 1,
+  NO_TOKEN = 2, // The domain token doesn't not exist your you are not owner of it,
+  NO_URI = 3, // Token URI doesn't exist
+}
+
+const getTokenUri = (domain: string, owner: string) => {
+  const wrapped = owner === CONFIG.nameWrapperContract.address
+
+  if (wrapped) {
+    return readContract({
+      ...CONFIG.nameWrapperContract,
+      functionName: 'uri',
+      args: [
+        getWrappedTokenId(domain)
+      ]
+    })
+  } else {
+    return readContract({
+      ...CONFIG.baseRegistrarContract,
+      functionName: 'tokenURI',
+      args: [
+        getUnwrappedTokenId(domain)
+      ]
+    })
+  }
 }
 
 const App = () => {
@@ -41,61 +64,45 @@ const App = () => {
     }),
   })
   const { disconnect } = useDisconnect()
+  const [domain, setDomain] = useState<string>('')
+  const [requestStatus, setRequestStatus] = useState<RequestStatus>()
+  const [owner, setOwner] = useState<string>()
   const [tokenMeta, setTokenMeta] = useState<Meta>()
-  const [error, setError] = useState<Error>()
   const { isOpen, onOpen, onClose } = useDisclosure()
 
-  const handleDomainChange = debounce(async e => {
-    let tokenUri, owner
+  const handleDomainChange: React.ChangeEventHandler<HTMLInputElement> = debounce(async e => {
+    setRequestStatus(RequestStatus.PENDING)
+    setDomain(e.target.value)
 
-    const unwrappedTokenId = getUnwrappedTokenId(e.target.value)
+    let owner: string
 
     try {
       owner = await readContract({
         ...CONFIG.baseRegistrarContract,
         functionName: 'ownerOf',
-        args: [unwrappedTokenId]
-      })
+        args: [
+          getUnwrappedTokenId(e.target.value)
+        ]
+      }) as string
+
+      setOwner(owner)
     } catch {
-      setError(Error.NO_TOKEN)
+      setRequestStatus(RequestStatus.NO_TOKEN)
       return
     }
 
-    const wrapped = owner === CONFIG.nameWrapperContract.address
-
-    if (wrapped) {
-      const wrappedTokenId = getWrappedTokenId(e.target.value)
-      tokenUri = await readContract({
-        ...CONFIG.nameWrapperContract,
-        functionName: 'uri',
-        args: [wrappedTokenId]
-      })
-    } else {
-      tokenUri = await readContract({
-        ...CONFIG.baseRegistrarContract,
-        functionName: 'tokenURI',
-        args: [unwrappedTokenId]
-      })
-    }
-
     try {
-      const meta: Meta = await fetch(tokenUri as string).then(res => res.json())
+      const tokenUri = await getTokenUri(e.target.value, owner) as string
+      const meta: Meta = await fetch(tokenUri).then(res => res.json())
+
       setTokenMeta(meta)
-      setError(Error.OK)
+      setRequestStatus(RequestStatus.OK)
     } catch {
-      setError(Error.NO_URI)
+      setRequestStatus(RequestStatus.NO_URI)
     }
   }, 500)
 
-  const handleTransferClick = useCallback(async () => {
-    const unwrappedTokenId = getUnwrappedTokenId(e.target.value)
-
-    const owner = await readContract({
-      ...CONFIG.baseRegistrarContract,
-      functionName: 'ownerOf',
-      args: [unwrappedTokenId]
-    })
-  }, [])
+  const wrapped = owner === CONFIG.nameWrapperContract.address
 
   if (!isConnected) {
     return <Button onClick={() => connect()}>Connect Wallet</Button>  
@@ -109,20 +116,33 @@ const App = () => {
       </Box>
       
       <InputGroup size='sm'>
-        <Input ref={domainRef} placeholder='Second level domain' onChange={handleDomainChange} />
+        <Input
+          placeholder='Second level domain'
+          onChange={handleDomainChange}
+        />
         <InputRightAddon children={`.${CONFIG.tld}`} />
       </InputGroup>
 
-      {error !== undefined && error !== Error.OK && (
+      {requestStatus === RequestStatus.NO_TOKEN ? (
+        <Text color="red">
+          The domain token doesn't not exist your you are not owner of it
+        </Text>
+      ) : requestStatus === RequestStatus.NO_URI && (
+        <Text color="red">
+          Token URI doesn't exist
+        </Text>
+      )}
+
+      {(requestStatus === RequestStatus.OK || requestStatus === RequestStatus.NO_URI)  && (
         <HStack>
           <Button onClick={onOpen}>Transfer</Button>
           <Button>Wrap</Button>
         </HStack>
       )}
 
-      {error === Error.OK ? tokenMeta && (
+      {requestStatus === RequestStatus.OK && tokenMeta && (
         <Domain meta={tokenMeta} />
-      ) : <Text color="red">{error}</Text>}
+      )}
 
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
@@ -136,7 +156,7 @@ const App = () => {
             </Text>
           </ModalBody>
           <ModalFooter>
-            <Button onClick={handleTransferClick}>
+            <Button>
               Transfer
             </Button>
           </ModalFooter>
