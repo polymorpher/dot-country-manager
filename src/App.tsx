@@ -1,5 +1,22 @@
-import { useState } from 'react'
-import { Box, Button, Input, InputGroup, InputRightAddon, VStack } from '@chakra-ui/react'
+import { useState, useCallback, useRef } from 'react'
+import {
+  Box,
+  Button,
+  HStack,
+  Input,
+  InputGroup,
+  InputRightAddon,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
+  Text,
+  useDisclosure,
+  VStack
+} from '@chakra-ui/react'
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
 import { readContract } from '@wagmi/core'
 import { harmonyOne } from '@wagmi/core/chains'
@@ -10,6 +27,12 @@ import * as CONFIG from '~/config'
 import { Meta } from '~/types'
 import Domain from './components/Domain'
 
+enum Error {
+  OK = 0,
+  NO_TOKEN = 'The domain token doesn\'t not exist your you are not owner of it',
+  NO_URI = 'Token URI doesn\'t exist'
+}
+
 const App = () => {
   const { address, isConnected } = useAccount()
   const { connect } = useConnect({
@@ -19,16 +42,24 @@ const App = () => {
   })
   const { disconnect } = useDisconnect()
   const [tokenMeta, setTokenMeta] = useState<Meta>()
+  const [error, setError] = useState<Error>()
+  const { isOpen, onOpen, onClose } = useDisclosure()
 
   const handleDomainChange = debounce(async e => {
-    let tokenUri: string
+    let tokenUri, owner
+
     const unwrappedTokenId = getUnwrappedTokenId(e.target.value)
 
-    const owner = await readContract({
-      ...CONFIG.baseRegistrarContract,
-      functionName: 'ownerOf',
-      args: [unwrappedTokenId]
-    })
+    try {
+      owner = await readContract({
+        ...CONFIG.baseRegistrarContract,
+        functionName: 'ownerOf',
+        args: [unwrappedTokenId]
+      })
+    } catch {
+      setError(Error.NO_TOKEN)
+      return
+    }
 
     const wrapped = owner === CONFIG.nameWrapperContract.address
 
@@ -38,18 +69,33 @@ const App = () => {
         ...CONFIG.nameWrapperContract,
         functionName: 'uri',
         args: [wrappedTokenId]
-      }) as string
+      })
     } else {
       tokenUri = await readContract({
         ...CONFIG.baseRegistrarContract,
         functionName: 'tokenURI',
         args: [unwrappedTokenId]
-      }) as string
+      })
     }
 
-    const meta: Meta = await fetch(tokenUri).then(res => res.json())
-    setTokenMeta(meta)
+    try {
+      const meta: Meta = await fetch(tokenUri as string).then(res => res.json())
+      setTokenMeta(meta)
+      setError(Error.OK)
+    } catch {
+      setError(Error.NO_URI)
+    }
   }, 500)
+
+  const handleTransferClick = useCallback(async () => {
+    const unwrappedTokenId = getUnwrappedTokenId(e.target.value)
+
+    const owner = await readContract({
+      ...CONFIG.baseRegistrarContract,
+      functionName: 'ownerOf',
+      args: [unwrappedTokenId]
+    })
+  }, [])
 
   if (!isConnected) {
     return <Button onClick={() => connect()}>Connect Wallet</Button>  
@@ -57,19 +103,45 @@ const App = () => {
 
   return (
     <VStack width="full">
-      <Box>
+      <Box textAlign="center">
         Connected to {address}
         <Button onClick={() => disconnect()}>Disconnect</Button>
       </Box>
       
       <InputGroup size='sm'>
-        <Input placeholder='Second level domain' onChange={handleDomainChange} />
+        <Input ref={domainRef} placeholder='Second level domain' onChange={handleDomainChange} />
         <InputRightAddon children={`.${CONFIG.tld}`} />
       </InputGroup>
 
-      {tokenMeta && (
-        <Domain meta={tokenMeta} />
+      {error !== undefined && error !== Error.OK && (
+        <HStack>
+          <Button onClick={onOpen}>Transfer</Button>
+          <Button>Wrap</Button>
+        </HStack>
       )}
+
+      {error === Error.OK ? tokenMeta && (
+        <Domain meta={tokenMeta} />
+      ) : <Text color="red">{error}</Text>}
+
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Transfer</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Text as="label">
+              Transfer the domain token to:
+              <Input />
+            </Text>
+          </ModalBody>
+          <ModalFooter>
+            <Button onClick={handleTransferClick}>
+              Transfer
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </VStack>
   )
 }
