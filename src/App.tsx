@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
+  Alert,
+  AlertIcon,
   Box,
   Button,
   HStack,
@@ -15,10 +17,11 @@ import {
   ModalOverlay,
   Text,
   useDisclosure,
+  useToast,
   VStack
 } from '@chakra-ui/react'
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
-import { readContract } from '@wagmi/core'
+import { readContract, prepareWriteContract, writeContract } from '@wagmi/core'
 import { harmonyOne } from '@wagmi/core/chains'
 import { MetaMaskConnector } from '@wagmi/core/connectors/metaMask'
 import debounce from 'lodash/debounce'
@@ -65,14 +68,20 @@ const App = () => {
   })
   const { disconnect } = useDisconnect()
   const [domain, setDomain] = useState<string>('')
+  const [transferTo, setTransferTo] = useState<string>('')
   const [requestStatus, setRequestStatus] = useState<RequestStatus>()
   const [owner, setOwner] = useState<string>()
   const [tokenMeta, setTokenMeta] = useState<Meta>()
   const { isOpen, onOpen, onClose } = useDisclosure()
+  const toast = useToast()
 
   const handleDomainChange: React.ChangeEventHandler<HTMLInputElement> = debounce(async e => {
-    setRequestStatus(RequestStatus.PENDING)
     setDomain(e.target.value)
+    requestDomainData(e.target.value)
+  }, 500)
+
+  const requestDomainData = useCallback(async (domain: string) => {
+    setRequestStatus(RequestStatus.PENDING)
 
     let owner: string
 
@@ -81,7 +90,7 @@ const App = () => {
         ...CONFIG.baseRegistrarContract,
         functionName: 'ownerOf',
         args: [
-          getUnwrappedTokenId(e.target.value)
+          getUnwrappedTokenId(domain)
         ]
       }) as string
 
@@ -92,7 +101,7 @@ const App = () => {
     }
 
     try {
-      const tokenUri = await getTokenUri(e.target.value, owner) as string
+      const tokenUri = await getTokenUri(domain, owner) as string
       const meta: Meta = await fetch(tokenUri).then(res => res.json())
 
       setTokenMeta(meta)
@@ -100,9 +109,55 @@ const App = () => {
     } catch {
       setRequestStatus(RequestStatus.NO_URI)
     }
-  }, 500)
+  }, [])
 
   const wrapped = owner === CONFIG.nameWrapperContract.address
+
+  const handleTransferClick = useCallback(async () => {
+    let config
+
+    if (wrapped) {
+      config = await prepareWriteContract({
+        ...CONFIG.nameWrapperContract,
+        functionName: 'safeTransferFrom',
+        args: [
+          address,
+          transferTo,
+          getWrappedTokenId(domain),
+          1,
+          ''
+        ]
+      })
+    } else {
+      config = await prepareWriteContract({
+        ...CONFIG.baseRegistrarContract,
+        functionName: 'safeTransferFrom',
+        args: [
+          address,
+          transferTo,
+          getUnwrappedTokenId(domain)
+        ]
+      })
+    }
+
+    try {
+      await writeContract(config)
+      toast({
+        description: 'Transfer completed',
+        status: 'success',
+        isClosable: true
+      })
+
+      onClose()
+      requestDomainData(domain)
+    } catch {
+      toast({
+        description: 'Transfer failed',
+        status: 'error',
+        isClosable: true
+      })
+    }
+  }, [address, domain, onClose, requestDomainData, toast, transferTo, wrapped])
 
   if (!isConnected) {
     return <Button onClick={() => connect()}>Connect Wallet</Button>  
@@ -124,13 +179,15 @@ const App = () => {
       </InputGroup>
 
       {requestStatus === RequestStatus.NO_TOKEN ? (
-        <Text color="red">
+        <Alert status="error">
+          <AlertIcon />
           The domain token doesn't not exist your you are not owner of it
-        </Text>
+        </Alert >
       ) : requestStatus === RequestStatus.NO_URI && (
-        <Text color="red">
+        <Alert status="warning">
+          <AlertIcon />
           Token URI doesn't exist
-        </Text>
+        </Alert >
       )}
 
       {(requestStatus === RequestStatus.OK || requestStatus === RequestStatus.NO_URI)  && (
@@ -152,11 +209,11 @@ const App = () => {
           <ModalBody>
             <Text as="label">
               Transfer the domain token to:
-              <Input />
+              <Input onChange={e => setTransferTo(e.target.value)} />
             </Text>
           </ModalBody>
           <ModalFooter>
-            <Button>
+            <Button onClick={handleTransferClick}>
               Transfer
             </Button>
           </ModalFooter>
