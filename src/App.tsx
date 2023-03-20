@@ -7,7 +7,7 @@ import { MetaMaskConnector } from '@wagmi/core/connectors/metaMask'
 import debounce from 'lodash/debounce'
 import { getUnwrappedTokenId, getWrappedTokenId } from './helpers/tokenId'
 import * as CONFIG from '~/config'
-import { Meta } from './types'
+import { Meta } from '~/types'
 import Domain from './components/Domain'
 
 const App = () => {

@@ -1,7 +1,5 @@
 import { Abi } from 'abitype'
 
-declare module '@ensdomains/eth-ens-namehash';
-
 type Meta = {
   name: string
   description: string
