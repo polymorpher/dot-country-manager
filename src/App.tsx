@@ -150,9 +150,10 @@ const App = () => {
 
       onClose()
       requestDomainData(domain)
-    } catch {
+    } catch (e) {
       toast({
-        description: 'Transfer failed',
+        title: 'Transfer failed',
+        description: (e as Error).message,
         status: 'error',
         isClosable: true
       })
@@ -195,9 +196,10 @@ const App = () => {
         isClosable: true
       })
       requestDomainData(domain)
-    } catch {
+    } catch (e) {
       toast({
-        description: 'Unwrap failed',
+        title: 'Unwrap failed',
+        description: (e as Error).message,
         status: 'error',
         isClosable: true
       })
@@ -226,7 +228,7 @@ const App = () => {
       {requestStatus === RequestStatus.NO_TOKEN ? (
         <Alert status="error">
           <AlertIcon />
-          The domain token doesn't not exist your you are not owner of it
+          The domain token doesn't not exist or you are not owner of it
         </Alert >
       ) : requestStatus === RequestStatus.NO_URI && (
         <Alert status="warning">
