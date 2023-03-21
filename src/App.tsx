@@ -159,6 +159,51 @@ const App = () => {
     }
   }, [address, domain, onClose, requestDomainData, toast, transferTo, wrapped])
 
+  const handleWrapClick = useCallback(async () => {
+    let config
+    
+    try {
+      if (wrapped) {
+        config = await prepareWriteContract({
+          ...CONFIG.nameWrapperContract,
+          functionName: 'unwrapETH2LD',
+          args: [
+            getUnwrappedTokenId(domain),
+            address,
+            address
+          ]
+        })
+      } else {
+        config = await prepareWriteContract({
+          ...CONFIG.nameWrapperContract,
+          functionName: 'wrapETH2LD',
+          args: [
+            domain,
+            address,
+            0,
+            '0xFFFFFFFFFFFFFFFF',
+            CONFIG.resolverContract.address
+          ]
+        })
+      }
+      
+      await writeContract(config)
+
+      toast({
+        description: 'Unwrap completed',
+        status: 'success',
+        isClosable: true
+      })
+      requestDomainData(domain)
+    } catch {
+      toast({
+        description: 'Unwrap failed',
+        status: 'error',
+        isClosable: true
+      })
+    }
+  }, [address, domain, requestDomainData, toast, wrapped])
+
   if (!isConnected) {
     return <Button onClick={() => connect()}>Connect Wallet</Button>  
   }
@@ -193,7 +238,9 @@ const App = () => {
       {(requestStatus === RequestStatus.OK || requestStatus === RequestStatus.NO_URI)  && (
         <HStack>
           <Button onClick={onOpen}>Transfer</Button>
-          <Button>Wrap</Button>
+          <Button onClick={handleWrapClick}>
+            {wrapped ? 'Unwrap' : 'Wrap'}
+          </Button>
         </HStack>
       )}
 

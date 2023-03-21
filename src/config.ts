@@ -13,4 +13,9 @@ export const baseRegistrarContract: ContractConfig = {
   abi: erc721ABI as Abi
 }
 
+export const resolverContract: ContractConfig = {
+  address: '0xb3033Ec63c6fCc3A24a3D74C1E9d88CeaBE9c4c6',
+  abi: [] as Abi
+}
+
 export const tld = "country"
