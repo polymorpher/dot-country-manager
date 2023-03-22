@@ -29,6 +29,7 @@ import { MetaMaskConnector } from "@wagmi/core/connectors/metaMask"
 import debounce from "lodash/debounce"
 import { getUnwrappedTokenId, getWrappedTokenId } from "./helpers/tokenId"
 import * as CONFIG from "~/config"
+import * as ethers from "ethers"
 import { Meta } from "~/types"
 import Domain from "./components/Domain"
 import { useForm } from "react-hook-form"
@@ -67,6 +68,7 @@ const App = () => {
   const [domain, setDomain] = useState<string>("")
   const [requestStatus, setRequestStatus] = useState<RequestStatus>()
   const [owner, setOwner] = useState<string>()
+  const [wrappedOwner, setWrappedOwner] = useState<string>()
   const [tokenMeta, setTokenMeta] = useState<Meta>()
   const [tokenUri, setTokenUri] = useState<string>()
   const { isOpen, onOpen, onClose } = useDisclosure()
@@ -102,6 +104,18 @@ const App = () => {
     }
 
     try {
+      if (owner === CONFIG.nameWrapperContract.address) {
+        const wrappedOwner = (await readContract({
+          ...CONFIG.nameWrapperContract,
+          functionName: "ownerOf",
+          args: [getWrappedTokenId(domain)],
+        })) as string
+
+        setWrappedOwner(wrappedOwner)
+      }
+    } catch {}
+
+    try {
       const tokenUri = (await getTokenUri(
         domain,
         owner === CONFIG.nameWrapperContract.address
@@ -129,13 +143,23 @@ const App = () => {
           config = await prepareWriteContract({
             ...CONFIG.nameWrapperContract,
             functionName: "safeTransferFrom",
-            args: [address, data.transferTo, getWrappedTokenId(domain), 1, ""],
+            args: [
+              address,
+              data.transferTo,
+              getWrappedTokenId(domain),
+              1,
+              "0x",
+            ],
           })
         } else {
           config = await prepareWriteContract({
             ...CONFIG.baseRegistrarContract,
             functionName: "safeTransferFrom",
-            args: [address, data.transferTo, getUnwrappedTokenId(domain)],
+            args: [
+              address,
+              data.transferTo,
+              ethers.BigNumber.from(getUnwrappedTokenId(domain)),
+            ],
           })
         }
 
@@ -147,7 +171,12 @@ const App = () => {
         })
 
         onClose()
-        requestDomainData(domain)
+
+        if (wrapped) {
+          setWrappedOwner(data.transferTo)
+        } else {
+          setOwner(data.transferTo)
+        }
       } catch (e) {
         toast({
           title: "Transfer failed",
@@ -157,7 +186,7 @@ const App = () => {
         })
       }
     },
-    [address, domain, onClose, requestDomainData, toast, wrapped]
+    [address, domain, onClose, toast, wrapped]
   )
 
   const handleWrapClick = useCallback(async () => {
@@ -246,24 +275,26 @@ const App = () => {
         </Alert>
       ) : (
         requestStatus === RequestStatus.NO_URI && (
-          <Alert status="warning">
+          <Alert status="warning" overflowWrap="anywhere">
             <AlertIcon />
             Cannot load the token URI
-            <br/>
+            <br />
             {tokenUri}
           </Alert>
         )
       )}
 
       {(requestStatus === RequestStatus.OK ||
-        requestStatus === RequestStatus.NO_URI) && (
-        <HStack>
-          <Button onClick={onOpen}>Transfer</Button>
-          <Button onClick={handleWrapClick}>
-            {wrapped ? "Unwrap" : "Wrap"}
-          </Button>
-        </HStack>
-      )}
+        requestStatus === RequestStatus.NO_URI) &&
+        ((wrapped && wrappedOwner === address) ||
+          (!wrapped && owner === address)) && (
+          <HStack>
+            <Button onClick={onOpen}>Transfer</Button>
+            <Button onClick={handleWrapClick}>
+              {wrapped ? "Unwrap" : "Wrap"}
+            </Button>
+          </HStack>
+        )}
 
       {requestStatus === RequestStatus.OK && tokenMeta && (
         <Domain meta={tokenMeta} />
