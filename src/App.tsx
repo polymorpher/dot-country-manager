@@ -166,6 +166,22 @@ const App = () => {
           args: [getUnwrappedTokenId(domain), address, address],
         })
       } else {
+        const approved = await readContract({
+          ...CONFIG.baseRegistrarContract,
+          functionName: "isApprovedForAll",
+          args: [address, CONFIG.nameWrapperContract.address],
+        })
+
+        if (!approved) {
+          config = await prepareWriteContract({
+            ...CONFIG.baseRegistrarContract,
+            functionName: "setApprovalForAll",
+            args: [CONFIG.nameWrapperContract.address, true],
+          })
+
+          await writeContract(config)
+        }
+
         config = await prepareWriteContract({
           ...CONFIG.nameWrapperContract,
           functionName: "wrapETH2LD",
@@ -182,20 +198,21 @@ const App = () => {
       await writeContract(config)
 
       toast({
-        description: "Unwrap completed",
+        description: wrapped ? "Unwrap completed" : "Wrap completed",
         status: "success",
         isClosable: true,
       })
-      requestDomainData(domain)
+
+      setOwner(wrapped ? address : CONFIG.nameWrapperContract.address)
     } catch (e) {
       toast({
-        title: "Unwrap failed",
+        title: wrapped ? "Unwrap failed" : "Wrap completed",
         description: (e as Error).message,
         status: "error",
         isClosable: true,
       })
     }
-  }, [address, domain, requestDomainData, toast, wrapped])
+  }, [address, domain, toast, wrapped])
 
   if (!isConnected) {
     return <Button onClick={() => connect()}>Connect Wallet</Button>
