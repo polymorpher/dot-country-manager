@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback } from "react"
 import {
   Alert,
   AlertIcon,
@@ -20,18 +20,18 @@ import {
   ModalOverlay,
   useDisclosure,
   useToast,
-  VStack
-} from '@chakra-ui/react'
-import { useAccount, useConnect, useDisconnect } from 'wagmi'
-import { readContract, prepareWriteContract, writeContract } from '@wagmi/core'
-import { harmonyOne } from '@wagmi/core/chains'
-import { MetaMaskConnector } from '@wagmi/core/connectors/metaMask'
-import debounce from 'lodash/debounce'
-import { getUnwrappedTokenId, getWrappedTokenId } from './helpers/tokenId'
-import * as CONFIG from '~/config'
-import { Meta } from '~/types'
-import Domain from './components/Domain'
-import { useForm } from 'react-hook-form'
+  VStack,
+} from "@chakra-ui/react"
+import { useAccount, useConnect, useDisconnect } from "wagmi"
+import { readContract, prepareWriteContract, writeContract } from "@wagmi/core"
+import { harmonyOne } from "@wagmi/core/chains"
+import { MetaMaskConnector } from "@wagmi/core/connectors/metaMask"
+import debounce from "lodash/debounce"
+import { getUnwrappedTokenId, getWrappedTokenId } from "./helpers/tokenId"
+import * as CONFIG from "~/config"
+import { Meta } from "~/types"
+import Domain from "./components/Domain"
+import { useForm } from "react-hook-form"
 
 enum RequestStatus {
   OK = 0,
@@ -46,18 +46,14 @@ const getTokenUri = (domain: string, owner: string) => {
   if (wrapped) {
     return readContract({
       ...CONFIG.nameWrapperContract,
-      functionName: 'uri',
-      args: [
-        getWrappedTokenId(domain)
-      ]
+      functionName: "uri",
+      args: [getWrappedTokenId(domain)],
     })
   } else {
     return readContract({
       ...CONFIG.baseRegistrarContract,
-      functionName: 'tokenURI',
-      args: [
-        getUnwrappedTokenId(domain)
-      ]
+      functionName: "tokenURI",
+      args: [getUnwrappedTokenId(domain)],
     })
   }
 }
@@ -66,22 +62,27 @@ const App = () => {
   const { address, isConnected } = useAccount()
   const { connect } = useConnect({
     connector: new MetaMaskConnector({
-      chains: [harmonyOne]
+      chains: [harmonyOne],
     }),
   })
   const { disconnect } = useDisconnect()
-  const [domain, setDomain] = useState<string>('')
+  const [domain, setDomain] = useState<string>("")
   const [requestStatus, setRequestStatus] = useState<RequestStatus>()
   const [owner, setOwner] = useState<string>()
   const [tokenMeta, setTokenMeta] = useState<Meta>()
   const { isOpen, onOpen, onClose } = useDisclosure()
   const toast = useToast()
-  const { register, handleSubmit, formState: { errors } } = useForm()
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm()
 
-  const handleDomainChange: React.ChangeEventHandler<HTMLInputElement> = debounce(async e => {
-    setDomain(e.target.value)
-    requestDomainData(e.target.value)
-  }, 300)
+  const handleDomainChange: React.ChangeEventHandler<HTMLInputElement> =
+    debounce(async (e) => {
+      setDomain(e.target.value)
+      requestDomainData(e.target.value)
+    }, 300)
 
   const requestDomainData = useCallback(async (domain: string) => {
     setRequestStatus(RequestStatus.PENDING)
@@ -89,13 +90,11 @@ const App = () => {
     let owner: string
 
     try {
-      owner = await readContract({
+      owner = (await readContract({
         ...CONFIG.baseRegistrarContract,
-        functionName: 'ownerOf',
-        args: [
-          getUnwrappedTokenId(domain)
-        ]
-      }) as string
+        functionName: "ownerOf",
+        args: [getUnwrappedTokenId(domain)],
+      })) as string
 
       setOwner(owner)
     } catch {
@@ -104,8 +103,8 @@ const App = () => {
     }
 
     try {
-      const tokenUri = await getTokenUri(domain, owner) as string
-      const meta: Meta = await fetch(tokenUri).then(res => res.json())
+      const tokenUri = (await getTokenUri(domain, owner)) as string
+      const meta: Meta = await fetch(tokenUri).then((res) => res.json())
 
       setTokenMeta(meta)
       setRequestStatus(RequestStatus.OK)
@@ -116,101 +115,90 @@ const App = () => {
 
   const wrapped = owner === CONFIG.nameWrapperContract.address
 
-  const onTransferSubmit = useCallback(async (data) => {
-    let config
+  const onTransferSubmit = useCallback(
+    async (data) => {
+      let config
 
-    try {
-      if (wrapped) {
-        config = await prepareWriteContract({
-          ...CONFIG.nameWrapperContract,
-          functionName: 'safeTransferFrom',
-          args: [
-            address,
-            data.transferTo,
-            getWrappedTokenId(domain),
-            1,
-            ''
-          ]
+      try {
+        if (wrapped) {
+          config = await prepareWriteContract({
+            ...CONFIG.nameWrapperContract,
+            functionName: "safeTransferFrom",
+            args: [address, data.transferTo, getWrappedTokenId(domain), 1, ""],
+          })
+        } else {
+          config = await prepareWriteContract({
+            ...CONFIG.baseRegistrarContract,
+            functionName: "safeTransferFrom",
+            args: [address, data.transferTo, getUnwrappedTokenId(domain)],
+          })
+        }
+
+        await writeContract(config)
+        toast({
+          description: "Transfer completed",
+          status: "success",
+          isClosable: true,
         })
-      } else {
-        config = await prepareWriteContract({
-          ...CONFIG.baseRegistrarContract,
-          functionName: 'safeTransferFrom',
-          args: [
-            address,
-            data.transferTo,
-            getUnwrappedTokenId(domain)
-          ]
+
+        onClose()
+        requestDomainData(domain)
+      } catch (e) {
+        toast({
+          title: "Transfer failed",
+          description: (e as Error).message,
+          status: "error",
+          isClosable: true,
         })
       }
-
-      await writeContract(config)
-      toast({
-        description: 'Transfer completed',
-        status: 'success',
-        isClosable: true
-      })
-
-      onClose()
-      requestDomainData(domain)
-    } catch (e) {
-      toast({
-        title: 'Transfer failed',
-        description: (e as Error).message,
-        status: 'error',
-        isClosable: true
-      })
-    }
-  }, [address, domain, onClose, requestDomainData, toast, wrapped])
+    },
+    [address, domain, onClose, requestDomainData, toast, wrapped]
+  )
 
   const handleWrapClick = useCallback(async () => {
     let config
-    
+
     try {
       if (wrapped) {
         config = await prepareWriteContract({
           ...CONFIG.nameWrapperContract,
-          functionName: 'unwrapETH2LD',
-          args: [
-            getUnwrappedTokenId(domain),
-            address,
-            address
-          ]
+          functionName: "unwrapETH2LD",
+          args: [getUnwrappedTokenId(domain), address, address],
         })
       } else {
         config = await prepareWriteContract({
           ...CONFIG.nameWrapperContract,
-          functionName: 'wrapETH2LD',
+          functionName: "wrapETH2LD",
           args: [
             domain,
             address,
             0,
-            '0xFFFFFFFFFFFFFFFF',
-            CONFIG.resolverContract.address
-          ]
+            "0xFFFFFFFFFFFFFFFF",
+            CONFIG.resolverContract.address,
+          ],
         })
       }
-      
+
       await writeContract(config)
 
       toast({
-        description: 'Unwrap completed',
-        status: 'success',
-        isClosable: true
+        description: "Unwrap completed",
+        status: "success",
+        isClosable: true,
       })
       requestDomainData(domain)
     } catch (e) {
       toast({
-        title: 'Unwrap failed',
+        title: "Unwrap failed",
         description: (e as Error).message,
-        status: 'error',
-        isClosable: true
+        status: "error",
+        isClosable: true,
       })
     }
   }, [address, domain, requestDomainData, toast, wrapped])
 
   if (!isConnected) {
-    return <Button onClick={() => connect()}>Connect Wallet</Button>  
+    return <Button onClick={() => connect()}>Connect Wallet</Button>
   }
 
   return (
@@ -219,11 +207,11 @@ const App = () => {
         Connected to {address}
         <Button onClick={() => disconnect()}>Disconnect</Button>
       </Box>
-      
-      <InputGroup size='sm'>
+
+      <InputGroup size="sm">
         <Input
           autoFocus
-          placeholder='Second level domain'
+          placeholder="Second level domain"
           onChange={handleDomainChange}
         />
         <InputRightAddon children={`.${CONFIG.tld}`} />
@@ -233,19 +221,22 @@ const App = () => {
         <Alert status="error">
           <AlertIcon />
           The domain token doesn't not exist or you are not owner of it
-        </Alert >
-      ) : requestStatus === RequestStatus.NO_URI && (
-        <Alert status="warning">
-          <AlertIcon />
-          Token URI doesn't exist
-        </Alert >
+        </Alert>
+      ) : (
+        requestStatus === RequestStatus.NO_URI && (
+          <Alert status="warning">
+            <AlertIcon />
+            Token URI doesn't exist
+          </Alert>
+        )
       )}
 
-      {(requestStatus === RequestStatus.OK || requestStatus === RequestStatus.NO_URI)  && (
+      {(requestStatus === RequestStatus.OK ||
+        requestStatus === RequestStatus.NO_URI) && (
         <HStack>
           <Button onClick={onOpen}>Transfer</Button>
           <Button onClick={handleWrapClick}>
-            {wrapped ? 'Unwrap' : 'Wrap'}
+            {wrapped ? "Unwrap" : "Wrap"}
           </Button>
         </HStack>
       )}
@@ -261,17 +252,27 @@ const App = () => {
           <ModalBody>
             <FormControl isInvalid={!!errors.transferTo}>
               <FormLabel>Transfer the domain token to:</FormLabel>
-              <Input autoFocus {...register("transferTo", { required: true, validate: { validAddress: value => /^0x[a-fA-F0-9]+$/.test(value) } }) }/>
+              <Input
+                autoFocus
+                {...register("transferTo", {
+                  required: true,
+                  validate: {
+                    validAddress: (value) => /^0x[a-fA-F0-9]+$/.test(value),
+                  },
+                })}
+              />
               {errors.transferTo && (
-                <FormErrorMessage>{
-                  errors.transferTo.type === "required" ? "Required" : errors.transferTo.type === "validAddress" && "Invalid address"}</FormErrorMessage>
+                <FormErrorMessage>
+                  {errors.transferTo.type === "required"
+                    ? "Required"
+                    : errors.transferTo.type === "validAddress" &&
+                      "Invalid address"}
+                </FormErrorMessage>
               )}
             </FormControl>
           </ModalBody>
           <ModalFooter>
-            <Button type="submit">
-              Transfer
-            </Button>
+            <Button type="submit">Transfer</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
