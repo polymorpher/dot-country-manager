@@ -4,6 +4,9 @@ import {
   AlertIcon,
   Box,
   Button,
+  FormControl,
+  FormErrorMessage,
+  FormLabel,
   HStack,
   Input,
   InputGroup,
@@ -15,7 +18,6 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  Text,
   useDisclosure,
   useToast,
   VStack
@@ -29,6 +31,7 @@ import { getUnwrappedTokenId, getWrappedTokenId } from './helpers/tokenId'
 import * as CONFIG from '~/config'
 import { Meta } from '~/types'
 import Domain from './components/Domain'
+import { useForm } from 'react-hook-form'
 
 enum RequestStatus {
   OK = 0,
@@ -68,17 +71,17 @@ const App = () => {
   })
   const { disconnect } = useDisconnect()
   const [domain, setDomain] = useState<string>('')
-  const [transferTo, setTransferTo] = useState<string>('')
   const [requestStatus, setRequestStatus] = useState<RequestStatus>()
   const [owner, setOwner] = useState<string>()
   const [tokenMeta, setTokenMeta] = useState<Meta>()
   const { isOpen, onOpen, onClose } = useDisclosure()
   const toast = useToast()
+  const { register, handleSubmit, formState: { errors } } = useForm()
 
   const handleDomainChange: React.ChangeEventHandler<HTMLInputElement> = debounce(async e => {
     setDomain(e.target.value)
     requestDomainData(e.target.value)
-  }, 500)
+  }, 300)
 
   const requestDomainData = useCallback(async (domain: string) => {
     setRequestStatus(RequestStatus.PENDING)
@@ -113,34 +116,34 @@ const App = () => {
 
   const wrapped = owner === CONFIG.nameWrapperContract.address
 
-  const handleTransferClick = useCallback(async () => {
+  const onTransferSubmit = useCallback(async (data) => {
     let config
 
-    if (wrapped) {
-      config = await prepareWriteContract({
-        ...CONFIG.nameWrapperContract,
-        functionName: 'safeTransferFrom',
-        args: [
-          address,
-          transferTo,
-          getWrappedTokenId(domain),
-          1,
-          ''
-        ]
-      })
-    } else {
-      config = await prepareWriteContract({
-        ...CONFIG.baseRegistrarContract,
-        functionName: 'safeTransferFrom',
-        args: [
-          address,
-          transferTo,
-          getUnwrappedTokenId(domain)
-        ]
-      })
-    }
-
     try {
+      if (wrapped) {
+        config = await prepareWriteContract({
+          ...CONFIG.nameWrapperContract,
+          functionName: 'safeTransferFrom',
+          args: [
+            address,
+            data.transferTo,
+            getWrappedTokenId(domain),
+            1,
+            ''
+          ]
+        })
+      } else {
+        config = await prepareWriteContract({
+          ...CONFIG.baseRegistrarContract,
+          functionName: 'safeTransferFrom',
+          args: [
+            address,
+            data.transferTo,
+            getUnwrappedTokenId(domain)
+          ]
+        })
+      }
+
       await writeContract(config)
       toast({
         description: 'Transfer completed',
@@ -158,7 +161,7 @@ const App = () => {
         isClosable: true
       })
     }
-  }, [address, domain, onClose, requestDomainData, toast, transferTo, wrapped])
+  }, [address, domain, onClose, requestDomainData, toast, wrapped])
 
   const handleWrapClick = useCallback(async () => {
     let config
@@ -219,6 +222,7 @@ const App = () => {
       
       <InputGroup size='sm'>
         <Input
+          autoFocus
           placeholder='Second level domain'
           onChange={handleDomainChange}
         />
@@ -249,20 +253,23 @@ const App = () => {
       {requestStatus === RequestStatus.OK && tokenMeta && (
         <Domain meta={tokenMeta} />
       )}
-
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
-        <ModalContent>
+        <ModalContent as="form" onSubmit={handleSubmit(onTransferSubmit)}>
           <ModalHeader>Transfer</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <Text as="label">
-              Transfer the domain token to:
-              <Input onChange={e => setTransferTo(e.target.value)} />
-            </Text>
+            <FormControl isInvalid={!!errors.transferTo}>
+              <FormLabel>Transfer the domain token to:</FormLabel>
+              <Input autoFocus {...register("transferTo", { required: true, validate: { validAddress: value => /^0x[a-fA-F0-9]+$/.test(value) } }) }/>
+              {errors.transferTo && (
+                <FormErrorMessage>{
+                  errors.transferTo.type === "required" ? "Required" : errors.transferTo.type === "validAddress" && "Invalid address"}</FormErrorMessage>
+              )}
+            </FormControl>
           </ModalBody>
           <ModalFooter>
-            <Button onClick={handleTransferClick}>
+            <Button type="submit">
               Transfer
             </Button>
           </ModalFooter>
