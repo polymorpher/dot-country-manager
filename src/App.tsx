@@ -40,9 +40,7 @@ enum RequestStatus {
   NO_URI = 3, // Token URI doesn't exist
 }
 
-const getTokenUri = (domain: string, owner: string) => {
-  const wrapped = owner === CONFIG.nameWrapperContract.address
-
+const getTokenUri = (domain: string, wrapped: boolean) => {
   if (wrapped) {
     return readContract({
       ...CONFIG.nameWrapperContract,
@@ -70,6 +68,7 @@ const App = () => {
   const [requestStatus, setRequestStatus] = useState<RequestStatus>()
   const [owner, setOwner] = useState<string>()
   const [tokenMeta, setTokenMeta] = useState<Meta>()
+  const [tokenUri, setTokenUri] = useState<string>()
   const { isOpen, onOpen, onClose } = useDisclosure()
   const toast = useToast()
   const {
@@ -103,7 +102,13 @@ const App = () => {
     }
 
     try {
-      const tokenUri = (await getTokenUri(domain, owner)) as string
+      const tokenUri = (await getTokenUri(
+        domain,
+        owner === CONFIG.nameWrapperContract.address
+      )) as string
+
+      setTokenUri(tokenUri)
+
       const meta: Meta = await fetch(tokenUri).then((res) => res.json())
 
       setTokenMeta(meta)
@@ -206,7 +211,7 @@ const App = () => {
       setOwner(wrapped ? address : CONFIG.nameWrapperContract.address)
     } catch (e) {
       toast({
-        title: wrapped ? "Unwrap failed" : "Wrap completed",
+        title: wrapped ? "Unwrap failed" : "Wrap failed",
         description: (e as Error).message,
         status: "error",
         isClosable: true,
@@ -237,13 +242,15 @@ const App = () => {
       {requestStatus === RequestStatus.NO_TOKEN ? (
         <Alert status="error">
           <AlertIcon />
-          The domain token doesn't not exist or you are not owner of it
+          The domain token doesn't exist
         </Alert>
       ) : (
         requestStatus === RequestStatus.NO_URI && (
           <Alert status="warning">
             <AlertIcon />
-            Token URI doesn't exist
+            Cannot load the token URI
+            <br/>
+            {tokenUri}
           </Alert>
         )
       )}
