@@ -1,6 +1,14 @@
-import React from 'react'
-import { Card, CardBody, Heading, HStack, Image, SimpleGrid, Text, VStack } from '@chakra-ui/react'
-import { Meta } from '~/types'
+import React from "react"
+import {
+  Card,
+  CardBody,
+  Heading,
+  Image,
+  SimpleGrid,
+  Text,
+  VStack,
+} from "@chakra-ui/react"
+import { Meta } from "~/types"
 
 interface DomainProps {
   meta: Meta
@@ -8,7 +16,7 @@ interface DomainProps {
 
 const Domain: React.FC<DomainProps> = ({ meta }) => (
   <Card overflow="hidden">
-    <Image src={meta.image} alt='image' />
+    <Image src={meta.image} alt="image" />
     <CardBody>
       <VStack mt="2">
         <Heading size="md">{meta.name}</Heading>
