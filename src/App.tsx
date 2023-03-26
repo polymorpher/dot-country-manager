@@ -246,7 +246,12 @@ const App = () => {
         isClosable: true,
       })
 
-      setOwner(wrapped ? address : CONFIG.nameWrapperContract.address)
+      if (wrapped) {
+        setOwner(address)
+      } else {
+        setOwner(CONFIG.nameWrapperContract.address)
+        setWrappedOwner(address)
+      }
     } catch (e) {
       toast({
         title: wrapped ? "Unwrap failed" : "Wrap failed",
