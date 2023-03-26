@@ -98,7 +98,8 @@ const App = () => {
       })) as string
 
       setOwner(owner)
-    } catch {
+    } catch (e) {
+      console.error("failed to load the token: ", e)
       setRequestStatus(RequestStatus.NO_TOKEN)
       return
     }
@@ -113,7 +114,14 @@ const App = () => {
 
         setWrappedOwner(wrappedOwner)
       }
-    } catch {}
+    } catch (e) {
+      toast({
+        title: "Failed to get owner of the token",
+        description: (e as Error).message,
+        status: "error",
+        isClosable: true,
+      })
+    }
 
     try {
       const tokenUri = (await getTokenUri(
@@ -127,10 +135,11 @@ const App = () => {
 
       setTokenMeta(meta)
       setRequestStatus(RequestStatus.OK)
-    } catch {
+    } catch (e) {
+      console.error("failed to load the token URI: ", e)
       setRequestStatus(RequestStatus.NO_URI)
     }
-  }, [])
+  }, [toast])
 
   const wrapped = owner === CONFIG.nameWrapperContract.address
 
