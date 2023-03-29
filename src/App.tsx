@@ -20,6 +20,7 @@ import {
   ModalOverlay,
   useDisclosure,
   useToast,
+  Text,
   VStack,
 } from "@chakra-ui/react"
 import { useAccount, useConnect, useDisconnect } from "wagmi"
@@ -268,48 +269,50 @@ const App = () => {
 
   return (
     <VStack width="full">
-      <Box textAlign="center">
-        Connected to {address}
-        <Button onClick={() => disconnect()}>Disconnect</Button>
-      </Box>
-
-      <InputGroup size="sm">
-        <Input
-          autoFocus
-          placeholder="Second level domain"
-          onChange={handleDomainChange}
-        />
-        <InputRightAddon children={`.${CONFIG.tld}`} />
-      </InputGroup>
-
-      {requestStatus === RequestStatus.NO_TOKEN ? (
-        <Alert status="error">
-          <AlertIcon />
-          The domain token doesn't exist
-        </Alert>
-      ) : (
-        requestStatus === RequestStatus.NO_URI && (
-          <Alert status="warning" overflowWrap="anywhere">
+      <VStack mb={8} align={"center"}>
+        <Box textAlign="center">
+          <Text pb={4}>Connected to {address}</Text>
+          <Button onClick={() => disconnect()}>Disconnect</Button>
+        </Box>
+        <Box alignContent={"center"} py={8}>
+          <InputGroup size="sm">
+            <Input
+              w={240}
+              autoFocus
+              placeholder="Second level domain"
+              onChange={handleDomainChange}
+            />
+            <InputRightAddon children={`.${CONFIG.tld}`} />
+          </InputGroup>
+        </Box>
+        {requestStatus === RequestStatus.NO_TOKEN ? (
+          <Alert status="error">
             <AlertIcon />
-            Cannot load the token URI
-            <br />
-            {tokenUri}
+            The domain token doesn't exist
           </Alert>
-        )
-      )}
-
-      {(requestStatus === RequestStatus.OK ||
-        requestStatus === RequestStatus.NO_URI) &&
-        ((wrapped && wrappedOwner === address) ||
-          (!wrapped && owner === address)) && (
-          <HStack>
-            <Button onClick={onOpen}>Transfer</Button>
-            <Button onClick={handleWrapClick}>
-              {wrapped ? "Unwrap" : "Wrap"}
-            </Button>
-          </HStack>
+        ) : (
+          requestStatus === RequestStatus.NO_URI && (
+            <Alert status="warning" overflowWrap="anywhere">
+              <AlertIcon />
+              Cannot load the token URI
+              <br />
+              {tokenUri}
+            </Alert>
+          )
         )}
 
+        {(requestStatus === RequestStatus.OK ||
+          requestStatus === RequestStatus.NO_URI) &&
+          ((wrapped && wrappedOwner === address) ||
+            (!wrapped && owner === address)) && (
+            <HStack>
+              <Button onClick={onOpen}>Transfer</Button>
+              <Button onClick={handleWrapClick}>
+                {wrapped ? "Unwrap" : "Wrap"}
+              </Button>
+            </HStack>
+          )}
+      </VStack>
       {requestStatus === RequestStatus.OK && tokenMeta && (
         <Domain meta={tokenMeta} />
       )}

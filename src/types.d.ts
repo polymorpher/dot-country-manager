@@ -1,14 +1,16 @@
 import { Abi } from 'abitype'
 
+interface MetaAttribute {
+  display_type: string
+  trait_type: string
+  value: string | number
+}
+
 type Meta = {
   name: string
   description: string
   image: string
-  attributes: {
-    trait_type: string
-    display_type: "number" | "date"
-    value: string
-  }[]
+  attributes: MetaAttribute[]
 }
 
 type ContractConfig = {
