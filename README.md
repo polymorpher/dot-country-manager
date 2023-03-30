@@ -20,6 +20,9 @@ The environment variables that need to be set (in .env) corresponding to those c
 VITE_NAME_WRAPPER_ADDRESS
 VITE_BASE_REGISTRAR_ADDRESS
 VITE_RESOLVER_ADDRESS
+VITE_PROVIDER
+VITE_WALLET_CONNECT_ID
+VITE_CHAIN_ID
 ```
 
-The `VITE_` prefix is required for the frontend framework to identify and load these variables.
+The `VITE_` prefix is required for the frontend framework to identify and load these variables. Example values of most variables are provided in `.env.example` 

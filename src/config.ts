@@ -23,3 +23,5 @@ export const tld = 'country'
 export const rpcProvider = import.meta.env.VITE_PROVIDER
 
 export const walletConnectProjectId = import.meta.env.VITE_WALLET_CONNECT_ID
+
+export const requiredChainId = Number(import.meta.env.VITE_CHAIN_ID)

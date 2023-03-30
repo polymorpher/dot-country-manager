@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import {
   Alert,
   AlertIcon,
@@ -23,7 +23,7 @@ import {
   Text,
   VStack
 } from '@chakra-ui/react'
-import { useAccount, useConnect, useDisconnect } from 'wagmi'
+import { useAccount, useConnect, useDisconnect, useSwitchNetwork, useNetwork } from 'wagmi'
 import { readContract, prepareWriteContract, writeContract } from '@wagmi/core'
 import debounce from 'lodash/debounce'
 import { getUnwrappedTokenId, getWrappedTokenId } from './helpers/tokenId'
@@ -32,6 +32,7 @@ import * as ethers from 'ethers'
 import { type Meta } from '~/types'
 import Domain from './components/Domain'
 import { useForm } from 'react-hook-form'
+import { requiredChainId } from '~/config'
 
 enum RequestStatus {
   OK = 0,
@@ -59,6 +60,8 @@ const getTokenUri = async (domain: string, wrapped: boolean): Promise<string> =>
 const App: React.FC = () => {
   const { address, isConnected } = useAccount()
   const { connect, connectors, error, isLoading, pendingConnector } = useConnect()
+  const { chain } = useNetwork()
+  const { switchNetwork } = useSwitchNetwork()
   const { disconnect } = useDisconnect()
   const [domain, setDomain] = useState<string>('')
   const [requestStatus, setRequestStatus] = useState<RequestStatus>()
@@ -141,7 +144,9 @@ const App: React.FC = () => {
   const onTransferSubmit = useCallback(
     async (data: any) => {
       let config: any
-
+      if (chain?.id !== requiredChainId) {
+        return toast({ status: 'error', description: 'Connected to wrong network. Please switch to Harmony in your wallet' })
+      }
       try {
         if (wrapped) {
           config = await prepareWriteContract({
@@ -190,11 +195,14 @@ const App: React.FC = () => {
         })
       }
     },
-    [address, domain, onClose, toast, wrapped]
+    [address, domain, onClose, toast, wrapped, chain]
   )
 
   const handleWrapClick = useCallback(async () => {
     let config: any = null
+    if (chain?.id !== requiredChainId) {
+      return toast({ status: 'error', description: 'Connected to wrong network. Please switch to Harmony in your wallet' })
+    }
 
     try {
       if (wrapped) {
@@ -255,7 +263,17 @@ const App: React.FC = () => {
         isClosable: true
       })
     }
-  }, [address, domain, toast, wrapped])
+  }, [address, domain, toast, wrapped, chain])
+
+  useEffect(() => {
+    if (!isConnected || !chain || !switchNetwork) {
+      return
+    }
+    if (chain.id !== requiredChainId) {
+      console.log(requiredChainId)
+      switchNetwork(requiredChainId)
+    }
+  }, [isConnected, chain, switchNetwork])
 
   if (!isConnected) {
     return <VStack>
@@ -276,14 +294,13 @@ const App: React.FC = () => {
 
       {error && <div>{error.message}</div>}
     </VStack>
-    // return <Button onClick={() => { connect() }}>Connect Wallet</Button>
   }
 
   return (
     <VStack width="full">
       <VStack mb={8} align={'center'}>
         <Box textAlign="center">
-          <Text pb={4}>Connected to {address}</Text>
+          <Text pb={4}>Connected to {chain?.name} <br/> {address}</Text>
           <Button onClick={() => { disconnect() }}>Disconnect</Button>
         </Box>
         <Box alignContent={'center'} py={8}>

@@ -9,17 +9,18 @@ import { rpcProvider, walletConnectProjectId } from '~/config'
 
 import { MetaMaskConnector } from 'wagmi/connectors/metaMask'
 import { WalletConnectConnector } from 'wagmi/connectors/walletConnect'
+// import { InjectedConnector } from 'wagmi/connectors/injected'
 
 const { chains, provider, webSocketProvider } = configureChains(
   [harmonyOne],
   [jsonRpcProvider({ rpc: (chain) => ({ http: rpcProvider }) })]
-  // [publicProvider()]
 )
 
 const client = createClient({
   autoConnect: true,
   connectors: [
     new MetaMaskConnector({ chains }),
+    // new InjectedConnector({ chains }),
     new WalletConnectConnector({
       chains,
       options: { projectId: walletConnectProjectId }
