@@ -145,8 +145,8 @@ const App = () => {
   const wrapped = owner === CONFIG.nameWrapperContract.address
 
   const onTransferSubmit = useCallback(
-    async (data) => {
-      let config
+    async (data: any) => {
+      let config: any
 
       try {
         if (wrapped) {
@@ -200,7 +200,7 @@ const App = () => {
   )
 
   const handleWrapClick = useCallback(async () => {
-    let config
+    let config: any = null
 
     try {
       if (wrapped) {
