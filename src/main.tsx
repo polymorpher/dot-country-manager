@@ -33,7 +33,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <ChakraProvider>
       <WagmiConfig client={client}>
-        <Container my="5">
+        <Container my="8">
           <App />
         </Container>
       </WagmiConfig>

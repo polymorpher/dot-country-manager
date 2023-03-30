@@ -262,7 +262,7 @@ const App: React.FC = () => {
       <Text pb={8}>Please connect your wallet</Text>
       {connectors.map((connector) => (
         <Button
-            maxW={160} w={'100%'}
+            maxW={200} w={'100%'}
               isDisabled={!connector.ready}
               key={connector.id}
               onClick={() => { connect({ connector }) }}
@@ -270,7 +270,7 @@ const App: React.FC = () => {
           {connector.name}
           {isLoading &&
                 connector.id === pendingConnector?.id &&
-                ' (connecting)'}
+                ' (...)'}
         </Button>
       ))}
 
