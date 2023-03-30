@@ -1,7 +1,7 @@
-import { Abi } from 'abitype'
+import { type Abi } from 'abitype'
 import erc721ABI from '~/abis/erc721ABI.json'
 import NameWrapper from '~/abis/NameWrapper.json'
-import { ContractConfig } from './types'
+import { type ContractConfig } from './types'
 
 export const nameWrapperContract: ContractConfig = {
   address: import.meta.env.VITE_NAME_WRAPPER_ADDRESS,
@@ -18,4 +18,8 @@ export const resolverContract: ContractConfig = {
   abi: [] as Abi
 }
 
-export const tld = "country"
+export const tld = 'country'
+
+export const rpcProvider = import.meta.env.VITE_PROVIDER
+
+export const walletConnectProjectId = import.meta.env.VITE_WALLET_CONNECT_ID

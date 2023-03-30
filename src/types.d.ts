@@ -1,4 +1,4 @@
-import { Abi } from 'abitype'
+import { type Abi } from 'abitype'
 
 interface MetaAttribute {
   display_type: string
@@ -6,14 +6,14 @@ interface MetaAttribute {
   value: string | number
 }
 
-type Meta = {
+interface Meta {
   name: string
   description: string
   image: string
   attributes: MetaAttribute[]
 }
 
-type ContractConfig = {
+interface ContractConfig {
   address: `0x${string}`
   abi: Abi
 }

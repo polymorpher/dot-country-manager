@@ -1,4 +1,4 @@
-import React from "react"
+import React from 'react'
 import {
   Card,
   CardBody,
@@ -6,23 +6,22 @@ import {
   Image,
   SimpleGrid,
   Text,
-  VStack,
-} from "@chakra-ui/react"
-import {Meta, MetaAttribute} from "~/types"
+  VStack
+} from '@chakra-ui/react'
+import { type Meta, type MetaAttribute } from '~/types'
 
 interface DomainProps {
   meta: Meta
 }
 
-
 const processAttribute = (attribute: MetaAttribute): string => {
-  if(attribute.display_type === 'date'){
+  if (attribute.display_type === 'date') {
     return new Date(Number(attribute.value)).toLocaleDateString()
   }
   return attribute.value.toString()
 }
 const Domain: React.FC<DomainProps> = ({ meta }) => (
-  <Card overflow="hidden" align={"center"} border={"none"} shadow={"none"} p={4}>
+  <Card overflow="hidden" align={'center'} border={'none'} shadow={'none'} p={4}>
     <Image src={meta.image} maxW={320} alt="image" />
     <CardBody>
       <VStack mt="2">
