@@ -24,7 +24,7 @@ import {
   VStack
 } from '@chakra-ui/react'
 import { useAccount, useConnect, useDisconnect, useSwitchNetwork, useNetwork } from 'wagmi'
-import { readContract, prepareWriteContract, writeContract } from '@wagmi/core'
+import { readContract, prepareWriteContract, writeContract, signMessage } from '@wagmi/core'
 import debounce from 'lodash/debounce'
 import { getUnwrappedTokenId, getWrappedTokenId } from './helpers/tokenId'
 import * as CONFIG from '~/config'
@@ -32,8 +32,10 @@ import * as ethers from 'ethers'
 import { type Meta } from '~/types'
 import Domain from './components/Domain'
 import { useForm } from 'react-hook-form'
-import { requiredChainId } from '~/config'
+import { REGISTRAR_RELAY, requiredChainId, tld } from './config'
+import axios from 'axios'
 
+const base = axios.create({ timeout: 15000 })
 enum RequestStatus {
   OK = 0,
   PENDING = 1,
@@ -70,11 +72,18 @@ const App: React.FC = () => {
   const [tokenMeta, setTokenMeta] = useState<Meta>()
   const [tokenUri, setTokenUri] = useState<string>()
   const { isOpen, onOpen, onClose } = useDisclosure()
+  const { isOpen: isOpenRedirect, onOpen: onOpenRedirect, onClose: onCloseRedirect } = useDisclosure()
   const toast = useToast()
   const {
     register,
     handleSubmit,
     formState: { errors }
+  } = useForm()
+
+  const {
+    register: registerRedirect,
+    handleSubmit: handleSubmitRedirect,
+    formState: { errors: errorsRedirect }
   } = useForm()
 
   const handleDomainChange: React.ChangeEventHandler<HTMLInputElement> =
@@ -197,6 +206,32 @@ const App: React.FC = () => {
     },
     [address, domain, onClose, toast, wrapped, chain]
   )
+
+  const onRedirectSubmit = useCallback(
+    async (data: any) => {
+      const deadline = Math.floor(Date.now() / 1000) + 600
+      const targetDomain = data.host as string
+      const subdomain = data.subdomain as string
+      const signature = await signMessage({ message: `I want to map subdomain ${subdomain}.${domain}.${tld} to ${targetDomain}. This operation has to complete by timestamp ${deadline}` })
+      console.log(signature)
+      try {
+        const { data: { success } } = await base.post(`${REGISTRAR_RELAY}/cname`, {
+          deadline,
+          subdomain,
+          targetDomain,
+          signature,
+          domain: `${domain}.${tld}`
+        })
+        if (success) {
+          toast({ status: 'success', description: `Successfully mapped ${subdomain}.${domain}.${tld} to ${targetDomain}` })
+        }
+        onCloseRedirect()
+      } catch (ex: any) {
+        console.error(ex)
+        const error = ex?.response?.data?.error || ex.toString()
+        toast({ status: 'error', description: `Failed to map subdomain. Error:${error}` })
+      }
+    }, [domain, onCloseRedirect, toast])
 
   const handleWrapClick = useCallback(async () => {
     let config: any = null
@@ -341,6 +376,9 @@ const App: React.FC = () => {
               <Button onClick={handleWrapClick}>
                 {wrapped ? 'Unwrap' : 'Wrap'}
               </Button>
+              <Button onClick={onOpenRedirect}>
+                Subdomain
+              </Button>
             </HStack>
         )}
       </VStack>
@@ -374,6 +412,43 @@ const App: React.FC = () => {
           </ModalBody>
           <ModalFooter>
             <Button type="submit">Transfer</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+      <Modal isOpen={isOpenRedirect} onClose={onCloseRedirect}>
+        <ModalOverlay />
+        <ModalContent as="form" onSubmit={handleSubmitRedirect(onRedirectSubmit)}>
+          <ModalHeader>Redirect Subdomain (CNAME)</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <FormControl isInvalid={!!errorsRedirect.subdomain}>
+              <FormLabel>Subdomain</FormLabel>
+              <Input
+                  autoFocus
+                  {...registerRedirect('subdomain', {
+                    required: true,
+                    validate: { validSubdomain: (value) => /^[a-z0-9-]+$/.test(value) }
+                  })}
+              />
+              <FormLabel>Target Host</FormLabel>
+              <Input
+                  autoFocus
+                  placeholder={'secret-server.harmony.one'}
+                  {...registerRedirect('host', {
+                    required: true,
+                    validate: { validHost: (value) => /^[a-zA-Z0-9-.]+$/.test(value) }
+                  })}
+              />
+              {errorsRedirect.subdomain && <FormErrorMessage>
+                {errorsRedirect.subdomain.type === 'required' ? 'Required' : errorsRedirect.subdomain.type === 'validSubdomain' && 'Invalid subdomain'}
+              </FormErrorMessage>}
+              {errorsRedirect.host && <FormErrorMessage>
+                {errorsRedirect.host.type === 'required' ? 'Required' : errorsRedirect.host.type === 'validHost' && 'Invalid host'}
+              </FormErrorMessage>}
+            </FormControl>
+          </ModalBody>
+          <ModalFooter>
+            <Button type="submit">Save</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
