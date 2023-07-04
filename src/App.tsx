@@ -229,9 +229,35 @@ const App: React.FC = () => {
       } catch (ex: any) {
         console.error(ex)
         const error = ex?.response?.data?.error || ex.toString()
-        toast({ status: 'error', description: `Failed to map subdomain. Error:${error}` })
+        toast({ status: 'error', description: `Failed to map subdomain. Error: ${error}` })
       }
     }, [domain, onCloseRedirect, toast])
+
+  const activateSubdomains = useCallback(async () => {
+    try {
+      const { data: { success } } = await base.post(`${REGISTRAR_RELAY}/enable-subdomains`, { domain: `${domain}.${tld}` })
+      if (success) {
+        toast({ status: 'success', description: `Successfully activated Embedded Web Services for subdomains under ${domain}.${tld}` })
+      }
+    } catch (ex: any) {
+      console.error(ex)
+      const error = ex?.response?.data?.error || ex.toString()
+      toast({ status: 'error', description: `Failed to activate Embedded Web Services. Error: ${error}` })
+    }
+  }, [domain, toast])
+
+  const activateMail = useCallback(async () => {
+    try {
+      const { data: { success } } = await base.post(`${REGISTRAR_RELAY}/enable-mail`, { domain: `${domain}.${tld}` })
+      if (success) {
+        toast({ status: 'success', description: `Successfully activated Email Alias Service at mail.${domain}.${tld}` })
+      }
+    } catch (ex: any) {
+      console.error(ex)
+      const error = ex?.response?.data?.error || ex.toString()
+      toast({ status: 'error', description: `Failed to activate Email Alias Service. Error: ${error}` })
+    }
+  }, [domain, toast])
 
   const handleWrapClick = useCallback(async () => {
     let config: any = null
@@ -371,15 +397,23 @@ const App: React.FC = () => {
           requestStatus === RequestStatus.NO_URI) &&
           ((wrapped && wrappedOwner === address) ||
             (!wrapped && owner === address)) && (
-            <HStack>
-              <Button onClick={onOpen}>Transfer</Button>
-              <Button onClick={handleWrapClick}>
-                {wrapped ? 'Unwrap' : 'Wrap'}
+            <VStack>
+              <HStack>
+                <Button flex={1} onClick={onOpen}>Transfer</Button>
+                <Button flex={1} onClick={handleWrapClick}>
+                  {wrapped ? 'Unwrap' : 'Wrap'}
+                </Button>
+              </HStack>
+              <Button w={'100%'} onClick={onOpenRedirect}>
+                Configure Subdomain CNAME Redirect
               </Button>
-              <Button onClick={onOpenRedirect}>
-                Subdomain
+              <Button w={'100%'} onClick={activateMail}>
+                Activate Email Alias Service
               </Button>
-            </HStack>
+              <Button w={'100%'} onClick={activateSubdomains}>
+                Activate Notion / Substack in Subdomains
+              </Button>
+            </VStack>
         )}
       </VStack>
       {requestStatus === RequestStatus.OK && tokenMeta && (
