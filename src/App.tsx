@@ -32,7 +32,7 @@ import * as ethers from 'ethers'
 import { type Meta } from '~/types'
 import Domain from './components/Domain'
 import { useForm } from 'react-hook-form'
-import { REGISTRAR_RELAY, requiredChainId, tld } from './config'
+import { REGISTRAR_RELAY_BASE_API, requiredChainId, tld } from './config'
 import axios from 'axios'
 
 const base = axios.create({ timeout: 15000 })
@@ -215,7 +215,7 @@ const App: React.FC = () => {
       const signature = await signMessage({ message: `I want to map subdomain ${subdomain}.${domain}.${tld} to ${targetDomain}. This operation has to complete by timestamp ${deadline}` })
       console.log(signature)
       try {
-        const { data: { success } } = await base.post(`${REGISTRAR_RELAY}/cname`, {
+        const { data: { success } } = await base.post(`${REGISTRAR_RELAY_BASE_API}/cname`, {
           deadline,
           subdomain,
           targetDomain,
@@ -235,7 +235,7 @@ const App: React.FC = () => {
 
   const activateSubdomains = useCallback(async () => {
     try {
-      const { data: { success } } = await base.post(`${REGISTRAR_RELAY}/enable-subdomains`, { domain: `${domain}.${tld}` })
+      const { data: { success } } = await base.post(`${REGISTRAR_RELAY_BASE_API}/enable-subdomains`, { domain: `${domain}.${tld}` })
       if (success) {
         toast({ status: 'success', description: `Successfully activated Embedded Web Services for subdomains under ${domain}.${tld}` })
       }
@@ -248,7 +248,7 @@ const App: React.FC = () => {
 
   const activateMail = useCallback(async () => {
     try {
-      const { data: { success } } = await base.post(`${REGISTRAR_RELAY}/enable-mail`, { domain: `${domain}.${tld}` })
+      const { data: { success } } = await base.post(`${REGISTRAR_RELAY_BASE_API}/enable-mail`, { domain: `${domain}.${tld}` })
       if (success) {
         toast({ status: 'success', description: `Successfully activated Email Alias Service at mail.${domain}.${tld}` })
       }
