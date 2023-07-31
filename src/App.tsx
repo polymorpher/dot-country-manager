@@ -4,9 +4,6 @@ import {
   AlertIcon,
   Box,
   Button,
-  FormControl,
-  FormErrorMessage,
-  FormLabel,
   HStack,
   Input,
   InputGroup,
@@ -23,11 +20,11 @@ import { getUnwrappedTokenId, getWrappedTokenId } from './helpers/tokenId'
 import * as CONFIG from '~/config'
 import { type Meta } from '~/types'
 import Domain from './components/Domain'
-import {  requiredChainId, tld } from './config'
+import { requiredChainId } from './config'
 import ModalTransfer from './components/ModalTransfer'
 import ModalCanonicalName from './components/ModalCanonicalName'
 import { useDnsControl } from '~/components/hooks'
-
+import ModalRedirect from '~/components/ModalRedirect'
 
 enum RequestStatus {
   OK = 0,
@@ -65,6 +62,7 @@ const App: React.FC = () => {
   const [tokenMeta, setTokenMeta] = useState<Meta>()
   const [tokenUri, setTokenUri] = useState<string>()
   const transferModalControl = useDisclosure()
+  const canonicalNameModalControl = useDisclosure()
   const redirectModalControl = useDisclosure()
   const toast = useToast()
   const { activateSubdomains, activateMail } = useDnsControl({ domain })
@@ -277,8 +275,11 @@ const App: React.FC = () => {
                   {wrapped ? 'Unwrap' : 'Wrap'}
                 </Button>
               </HStack>
-              <Button w={'100%'} onClick={redirectModalControl.onOpen}>
-                Configure Subdomain CNAME Redirect
+              <Button w={'100%'} onClick={canonicalNameModalControl.onOpen}>
+                Configure Subdomain Alias
+              </Button>
+              <Button w={'100%'} onClick={canonicalNameModalControl.onOpen}>
+                Configure URL Redirect
               </Button>
               <Button w={'100%'} onClick={activateMail}>
                 Activate Email Alias Service
@@ -294,7 +295,8 @@ const App: React.FC = () => {
       )}
 
       <ModalTransfer domain={domain} control={transferModalControl} owner={owner} onComplete={(to: string) => { wrapped ? setWrappedOwner(to) : setOwner(to) }}/>
-      <ModalCanonicalName domain={domain} control={redirectModalControl}/>
+      <ModalCanonicalName domain={domain} control={canonicalNameModalControl}/>
+      <ModalRedirect domain={domain} control={redirectModalControl}/>
     </VStack>
   )
 }

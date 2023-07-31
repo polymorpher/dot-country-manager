@@ -54,7 +54,7 @@ const ModalCanonicalName = ({ domain, control }: { domain: string, control: UseD
   return <Modal isOpen={isOpen} onClose={onClose}>
     <ModalOverlay />
     <ModalContent as="form" onSubmit={handleSubmit(onSubmit)}>
-      <ModalHeader>Redirect Subdomain (CNAME)</ModalHeader>
+      <ModalHeader>Subdomain Alias (CNAME)</ModalHeader>
       <ModalCloseButton />
       <ModalBody>
         <FormControl isInvalid={!!errors.subdomain}>
