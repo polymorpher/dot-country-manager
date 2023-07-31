@@ -286,7 +286,7 @@ const App: React.FC = () => {
             Configure URL Redirect
           </Button>
         </VStack>}
-        {address && <VStack>
+        {domain && <VStack>
           <Button w={'100%'} onClick={activateMail}>
             Activate Email Alias Service
           </Button>
