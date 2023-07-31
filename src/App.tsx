@@ -25,6 +25,7 @@ import ModalTransfer from './components/ModalTransfer'
 import ModalCanonicalName from './components/ModalCanonicalName'
 import { useDnsControl } from '~/components/hooks'
 import ModalRedirect from '~/components/ModalRedirect'
+import { DNS_MAINTAINERS } from '~/config'
 
 enum RequestStatus {
   OK = 0,
@@ -227,6 +228,7 @@ const App: React.FC = () => {
       {error && <div>{error.message}</div>}
     </VStack>
   }
+  const isDnsAccessible: boolean = (address && owner?.toLowerCase() === address?.toLowerCase()) ?? DNS_MAINTAINERS.includes(address?.toLowerCase() ?? '')
 
   return (
     <VStack width="full">
@@ -263,7 +265,6 @@ const App: React.FC = () => {
               </Alert>
               )
             )}
-
         {(requestStatus === RequestStatus.OK ||
           requestStatus === RequestStatus.NO_URI) &&
           ((wrapped && wrappedOwner === address) ||
@@ -275,20 +276,24 @@ const App: React.FC = () => {
                   {wrapped ? 'Unwrap' : 'Wrap'}
                 </Button>
               </HStack>
-              <Button w={'100%'} onClick={canonicalNameModalControl.onOpen}>
-                Configure Subdomain Alias
-              </Button>
-              <Button w={'100%'} onClick={redirectModalControl.onOpen}>
-                Configure URL Redirect
-              </Button>
-              <Button w={'100%'} onClick={activateMail}>
-                Activate Email Alias Service
-              </Button>
-              <Button w={'100%'} onClick={activateSubdomains}>
-                Activate Notion / Substack in Subdomains
-              </Button>
             </VStack>
         )}
+        {isDnsAccessible && <VStack>
+          <Button w={'100%'} onClick={canonicalNameModalControl.onOpen}>
+            Configure Subdomain Alias
+          </Button>
+          <Button w={'100%'} onClick={redirectModalControl.onOpen}>
+            Configure URL Redirect
+          </Button>
+        </VStack>}
+        <VStack>
+          <Button w={'100%'} onClick={activateMail}>
+            Activate Email Alias Service
+          </Button>
+          <Button w={'100%'} onClick={activateSubdomains}>
+            Activate Notion / Substack in Subdomains
+          </Button>
+        </VStack>
       </VStack>
       {requestStatus === RequestStatus.OK && tokenMeta && (
         <Domain meta={tokenMeta} />

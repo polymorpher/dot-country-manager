@@ -27,3 +27,5 @@ export const walletConnectProjectId = import.meta.env.VITE_WALLET_CONNECT_ID
 export const requiredChainId = Number(import.meta.env.VITE_CHAIN_ID)
 
 export const REGISTRAR_RELAY_BASE_API = import.meta.env.VITE_REGISTRAR_RELAY_BASE_API as string
+
+export const DNS_MAINTAINERS = (JSON.parse(import.meta.env.VITE_DNS_MAINTAINERS ?? '[]') as string[]).map(e => e.toLowerCase())
