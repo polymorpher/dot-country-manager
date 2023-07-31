@@ -11,31 +11,24 @@ import {
   Input,
   InputGroup,
   InputRightAddon,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
   useDisclosure,
   useToast,
   Text,
   VStack
 } from '@chakra-ui/react'
 import { useAccount, useConnect, useDisconnect, useSwitchNetwork, useNetwork } from 'wagmi'
-import { readContract, prepareWriteContract, writeContract, signMessage } from '@wagmi/core'
+import { readContract, prepareWriteContract, writeContract } from '@wagmi/core'
 import debounce from 'lodash/debounce'
 import { getUnwrappedTokenId, getWrappedTokenId } from './helpers/tokenId'
 import * as CONFIG from '~/config'
-import * as ethers from 'ethers'
 import { type Meta } from '~/types'
 import Domain from './components/Domain'
-import { useForm } from 'react-hook-form'
-import { REGISTRAR_RELAY_BASE_API, requiredChainId, tld } from './config'
-import axios from 'axios'
+import {  requiredChainId, tld } from './config'
+import ModalTransfer from './components/ModalTransfer'
+import ModalCanonicalName from './components/ModalCanonicalName'
+import { useDnsControl } from '~/components/hooks'
 
-const base = axios.create({ timeout: 15000 })
+
 enum RequestStatus {
   OK = 0,
   PENDING = 1,
@@ -61,8 +54,8 @@ const getTokenUri = async (domain: string, wrapped: boolean): Promise<string> =>
 
 const App: React.FC = () => {
   const { address, isConnected } = useAccount()
-  const { connect, connectors, error, isLoading, pendingConnector } = useConnect()
   const { chain } = useNetwork()
+  const { connect, connectors, error, isLoading, pendingConnector } = useConnect()
   const { switchNetwork } = useSwitchNetwork()
   const { disconnect } = useDisconnect()
   const [domain, setDomain] = useState<string>('')
@@ -71,20 +64,11 @@ const App: React.FC = () => {
   const [wrappedOwner, setWrappedOwner] = useState<string>()
   const [tokenMeta, setTokenMeta] = useState<Meta>()
   const [tokenUri, setTokenUri] = useState<string>()
-  const { isOpen, onOpen, onClose } = useDisclosure()
-  const { isOpen: isOpenRedirect, onOpen: onOpenRedirect, onClose: onCloseRedirect } = useDisclosure()
+  const transferModalControl = useDisclosure()
+  const redirectModalControl = useDisclosure()
   const toast = useToast()
-  const {
-    register,
-    handleSubmit,
-    formState: { errors }
-  } = useForm()
-
-  const {
-    register: registerRedirect,
-    handleSubmit: handleSubmitRedirect,
-    formState: { errors: errorsRedirect }
-  } = useForm()
+  const { activateSubdomains, activateMail } = useDnsControl({ domain })
+  const wrapped = owner === CONFIG.nameWrapperContract.address
 
   const handleDomainChange: React.ChangeEventHandler<HTMLInputElement> =
     debounce(async (e) => {
@@ -147,117 +131,6 @@ const App: React.FC = () => {
       setRequestStatus(RequestStatus.NO_URI)
     }
   }, [toast])
-
-  const wrapped = owner === CONFIG.nameWrapperContract.address
-
-  const onTransferSubmit = useCallback(
-    async (data: any) => {
-      let config: any
-      if (chain?.id !== requiredChainId) {
-        return toast({ status: 'error', description: 'Connected to wrong network. Please switch to Harmony in your wallet' })
-      }
-      try {
-        if (wrapped) {
-          config = await prepareWriteContract({
-            ...CONFIG.nameWrapperContract,
-            functionName: 'safeTransferFrom',
-            args: [
-              address,
-              data.transferTo,
-              getWrappedTokenId(domain),
-              1,
-              '0x'
-            ]
-          })
-        } else {
-          config = await prepareWriteContract({
-            ...CONFIG.baseRegistrarContract,
-            functionName: 'safeTransferFrom',
-            args: [
-              address,
-              data.transferTo,
-              ethers.BigNumber.from(getUnwrappedTokenId(domain))
-            ]
-          })
-        }
-
-        await writeContract(config)
-        toast({
-          description: 'Transfer completed',
-          status: 'success',
-          isClosable: true
-        })
-
-        onClose()
-
-        if (wrapped) {
-          setWrappedOwner(data.transferTo)
-        } else {
-          setOwner(data.transferTo)
-        }
-      } catch (e) {
-        toast({
-          title: 'Transfer failed',
-          description: (e as Error).message,
-          status: 'error',
-          isClosable: true
-        })
-      }
-    },
-    [address, domain, onClose, toast, wrapped, chain]
-  )
-
-  const onRedirectSubmit = useCallback(
-    async (data: any) => {
-      const deadline = Math.floor(Date.now() / 1000) + 600
-      const targetDomain = data.host as string
-      const subdomain = data.subdomain as string
-      const signature = await signMessage({ message: `I want to map subdomain ${subdomain}.${domain}.${tld} to ${targetDomain}. This operation has to complete by timestamp ${deadline}` })
-      console.log(signature)
-      try {
-        const { data: { success } } = await base.post(`${REGISTRAR_RELAY_BASE_API}/cname`, {
-          deadline,
-          subdomain,
-          targetDomain,
-          signature,
-          domain: `${domain}.${tld}`
-        })
-        if (success) {
-          toast({ status: 'success', description: `Successfully mapped ${subdomain}.${domain}.${tld} to ${targetDomain}` })
-        }
-        onCloseRedirect()
-      } catch (ex: any) {
-        console.error(ex)
-        const error = ex?.response?.data?.error || ex.toString()
-        toast({ status: 'error', description: `Failed to map subdomain. Error: ${error}` })
-      }
-    }, [domain, onCloseRedirect, toast])
-
-  const activateSubdomains = useCallback(async () => {
-    try {
-      const { data: { success } } = await base.post(`${REGISTRAR_RELAY_BASE_API}/enable-subdomains`, { domain: `${domain}.${tld}` })
-      if (success) {
-        toast({ status: 'success', description: `Successfully activated Embedded Web Services for subdomains under ${domain}.${tld}` })
-      }
-    } catch (ex: any) {
-      console.error(ex)
-      const error = ex?.response?.data?.error || ex.toString()
-      toast({ status: 'error', description: `Failed to activate Embedded Web Services. Error: ${error}` })
-    }
-  }, [domain, toast])
-
-  const activateMail = useCallback(async () => {
-    try {
-      const { data: { success } } = await base.post(`${REGISTRAR_RELAY_BASE_API}/enable-mail`, { domain: `${domain}.${tld}` })
-      if (success) {
-        toast({ status: 'success', description: `Successfully activated Email Alias Service at mail.${domain}.${tld}` })
-      }
-    } catch (ex: any) {
-      console.error(ex)
-      const error = ex?.response?.data?.error || ex.toString()
-      toast({ status: 'error', description: `Failed to activate Email Alias Service. Error: ${error}` })
-    }
-  }, [domain, toast])
 
   const handleWrapClick = useCallback(async () => {
     let config: any = null
@@ -399,12 +272,12 @@ const App: React.FC = () => {
             (!wrapped && owner === address)) && (
             <VStack>
               <HStack>
-                <Button flex={1} onClick={onOpen}>Transfer</Button>
+                <Button flex={1} onClick={transferModalControl.onOpen}>Transfer</Button>
                 <Button flex={1} onClick={handleWrapClick}>
                   {wrapped ? 'Unwrap' : 'Wrap'}
                 </Button>
               </HStack>
-              <Button w={'100%'} onClick={onOpenRedirect}>
+              <Button w={'100%'} onClick={redirectModalControl.onOpen}>
                 Configure Subdomain CNAME Redirect
               </Button>
               <Button w={'100%'} onClick={activateMail}>
@@ -419,73 +292,9 @@ const App: React.FC = () => {
       {requestStatus === RequestStatus.OK && tokenMeta && (
         <Domain meta={tokenMeta} />
       )}
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent as="form" onSubmit={handleSubmit(onTransferSubmit)}>
-          <ModalHeader>Transfer</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <FormControl isInvalid={!!errors.transferTo}>
-              <FormLabel>Transfer the domain token to:</FormLabel>
-              <Input
-                autoFocus
-                {...register('transferTo', {
-                  required: true,
-                  validate: { validAddress: (value) => /^0x[a-fA-F0-9]+$/.test(value) }
-                })}
-              />
-              {errors.transferTo && (
-                <FormErrorMessage>
-                  {errors.transferTo.type === 'required'
-                    ? 'Required'
-                    : errors.transferTo.type === 'validAddress' &&
-                      'Invalid address'}
-                </FormErrorMessage>
-              )}
-            </FormControl>
-          </ModalBody>
-          <ModalFooter>
-            <Button type="submit">Transfer</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-      <Modal isOpen={isOpenRedirect} onClose={onCloseRedirect}>
-        <ModalOverlay />
-        <ModalContent as="form" onSubmit={handleSubmitRedirect(onRedirectSubmit)}>
-          <ModalHeader>Redirect Subdomain (CNAME)</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <FormControl isInvalid={!!errorsRedirect.subdomain}>
-              <FormLabel>Subdomain</FormLabel>
-              <Input
-                  autoFocus
-                  {...registerRedirect('subdomain', {
-                    required: true,
-                    validate: { validSubdomain: (value) => /^[a-z0-9-]+$/.test(value) }
-                  })}
-              />
-              <FormLabel>Target Host</FormLabel>
-              <Input
-                  autoFocus
-                  placeholder={'secret-server.harmony.one'}
-                  {...registerRedirect('host', {
-                    required: true,
-                    validate: { validHost: (value) => /^[a-zA-Z0-9-.]+$/.test(value) }
-                  })}
-              />
-              {errorsRedirect.subdomain && <FormErrorMessage>
-                {errorsRedirect.subdomain.type === 'required' ? 'Required' : errorsRedirect.subdomain.type === 'validSubdomain' && 'Invalid subdomain'}
-              </FormErrorMessage>}
-              {errorsRedirect.host && <FormErrorMessage>
-                {errorsRedirect.host.type === 'required' ? 'Required' : errorsRedirect.host.type === 'validHost' && 'Invalid host'}
-              </FormErrorMessage>}
-            </FormControl>
-          </ModalBody>
-          <ModalFooter>
-            <Button type="submit">Save</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+
+      <ModalTransfer domain={domain} control={transferModalControl} owner={owner} onComplete={(to: string) => { wrapped ? setWrappedOwner(to) : setOwner(to) }}/>
+      <ModalCanonicalName domain={domain} control={redirectModalControl}/>
     </VStack>
   )
 }
