@@ -278,7 +278,7 @@ const App: React.FC = () => {
               <Button w={'100%'} onClick={canonicalNameModalControl.onOpen}>
                 Configure Subdomain Alias
               </Button>
-              <Button w={'100%'} onClick={canonicalNameModalControl.onOpen}>
+              <Button w={'100%'} onClick={redirectModalControl.onOpen}>
                 Configure URL Redirect
               </Button>
               <Button w={'100%'} onClick={activateMail}>
