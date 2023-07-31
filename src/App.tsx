@@ -286,15 +286,16 @@ const App: React.FC = () => {
             Configure URL Redirect
           </Button>
         </VStack>}
-        <VStack>
+        {address && <VStack>
           <Button w={'100%'} onClick={activateMail}>
             Activate Email Alias Service
           </Button>
           <Button w={'100%'} onClick={activateSubdomains}>
             Activate Notion / Substack in Subdomains
           </Button>
-        </VStack>
+        </VStack>}
       </VStack>
+
       {requestStatus === RequestStatus.OK && tokenMeta && (
         <Domain meta={tokenMeta} />
       )}
