@@ -61,7 +61,7 @@ const ModalRedirect = ({ domain, control }: { domain: string, control: UseDisclo
       <ModalHeader>Redirect to URL (HTTP 301)</ModalHeader>
       <ModalCloseButton />
       <ModalBody>
-        <Text>Use @ for root domain (i.e. to redirect <b>{domain}</b> itself)</Text>
+        <Text>Use @ for root domain (i.e. to redirect <b>{domain}.{tld}</b> itself)</Text>
         <FormControl isInvalid={!!errors.subdomain}>
           <FormLabel>Subdomain</FormLabel>
           <Input autoFocus
