@@ -228,7 +228,7 @@ const App: React.FC = () => {
       {error && <div>{error.message}</div>}
     </VStack>
   }
-  const isDnsAccessible: boolean = (address && owner?.toLowerCase() === address?.toLowerCase()) ?? DNS_MAINTAINERS.includes(address?.toLowerCase() ?? '')
+  const isDnsAccessible: boolean = !!domain && ((owner?.toLowerCase() === address?.toLowerCase()) || DNS_MAINTAINERS.includes(address?.toLowerCase() ?? ''))
 
   return (
     <VStack width="full">
