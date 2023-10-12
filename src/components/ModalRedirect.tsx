@@ -32,7 +32,8 @@ const ModalRedirect = ({ domain, control }: { domain: string, control: UseDisclo
     const subdomain = data.subdomain as string
     const path = data.path as string
     const fqdn = subdomain === '@' ? `${domain}.${tld}` : `${subdomain}.${domain}.${tld}`
-    const fullUrl = path === '/' ? fqdn : `${fqdn}${path}`
+    // const fullUrl = path === '/' ? fqdn : `${fqdn}${path}`
+    const fullUrl = `${fqdn}${path}`
     const signature = await signMessage({ message: `I want to map ${fullUrl} to ${target}. This operation has to complete by timestamp ${deadline}` })
     console.log(signature)
     try {
