@@ -63,7 +63,7 @@ const ModalCanonicalName = ({ domain, control }: { domain: string, control: UseD
                         autoFocus
                         {...register('subdomain', {
                           required: true,
-                          validate: { validSubdomain: (value) => /^[a-z0-9-]+$/.test(value) }
+                          validate: { validSubdomain: (value) => value === '@' || /^[a-z0-9-]+$/.test(value) }
                         })}
                     />
           <FormLabel>Target Host</FormLabel>
