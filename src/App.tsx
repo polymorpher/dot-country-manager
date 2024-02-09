@@ -103,6 +103,7 @@ const App: React.FC = () => {
         })) as string
 
         setWrappedOwner(wrappedOwner)
+        console.log({ owner, wrappedOwner })
       }
     } catch (e) {
       toast({
@@ -228,7 +229,7 @@ const App: React.FC = () => {
       {error && <div>{error.message}</div>}
     </VStack>
   }
-  const isDnsAccessible: boolean = !!domain && ((owner?.toLowerCase() === address?.toLowerCase()) || DNS_MAINTAINERS.includes(address?.toLowerCase() ?? ''))
+  const isDnsAccessible: boolean = !!domain && ((owner?.toLowerCase() === address?.toLowerCase()) || (wrappedOwner?.toLowerCase() === address?.toLowerCase()) || DNS_MAINTAINERS.includes(address?.toLowerCase() ?? ''))
 
   return (
     <VStack width="full">
