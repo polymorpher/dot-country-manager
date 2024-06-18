@@ -19,13 +19,14 @@ import debounce from 'lodash/debounce'
 import { getUnwrappedTokenId, getWrappedTokenId } from './helpers/tokenId'
 import * as CONFIG from '~/config'
 import { type Meta } from '~/types'
-import Domain from './components/Domain'
+import Domain, { isExpiryTimeInconsistent } from './components/Domain'
 import { requiredChainId } from './config'
 import ModalTransfer from './components/ModalTransfer'
 import ModalCanonicalName from './components/ModalCanonicalName'
 import { useDnsControl } from '~/components/hooks'
 import ModalRedirect from '~/components/ModalRedirect'
 import { DNS_MAINTAINERS } from '~/config'
+import { type BigNumber } from 'ethers'
 
 enum RequestStatus {
   OK = 0,
@@ -59,6 +60,7 @@ const App: React.FC = () => {
   const [domain, setDomain] = useState<string>('')
   const [requestStatus, setRequestStatus] = useState<RequestStatus>()
   const [owner, setOwner] = useState<string>()
+  const [expiryTime, setExpiryTime] = useState<number>(0)
   const [wrappedOwner, setWrappedOwner] = useState<string>()
   const [tokenMeta, setTokenMeta] = useState<Meta>()
   const [tokenUri, setTokenUri] = useState<string>()
@@ -66,7 +68,7 @@ const App: React.FC = () => {
   const canonicalNameModalControl = useDisclosure()
   const redirectModalControl = useDisclosure()
   const toast = useToast()
-  const { activateSubdomains, activateMail } = useDnsControl({ domain })
+  const { activateSubdomains, activateMail, /* genCert, renewCert, */ genMetadata, renewMetadata } = useDnsControl({ domain })
   const wrapped = owner === CONFIG.nameWrapperContract.address
 
   const handleDomainChange: React.ChangeEventHandler<HTMLInputElement> =
@@ -114,21 +116,40 @@ const App: React.FC = () => {
       })
     }
 
+    let tokenUri
     try {
-      const tokenUri = (await getTokenUri(
+      tokenUri = (await getTokenUri(
         domain,
         owner === CONFIG.nameWrapperContract.address
       ))
+      const uri = new URL(tokenUri)
+      if (!uri.search) {
+        uri.search = '?' + Math.random().toString(26).slice(2)
+      }
 
-      setTokenUri(tokenUri)
+      setTokenUri(uri.toString())
+      console.log(`tokenUri ${uri.toString()}`)
 
-      const meta: Meta = await fetch(tokenUri).then(async (res) => await res.json())
-
+      const meta: Meta = await fetch(uri.toString()).then(async (res) => await res.json())
+      console.log(meta)
       setTokenMeta(meta)
       setRequestStatus(RequestStatus.OK)
     } catch (e) {
       console.error('failed to load the token URI: ', e)
       setRequestStatus(RequestStatus.NO_URI)
+    }
+
+    try {
+      const expiry = (await readContract({
+        ...CONFIG.baseRegistrarContract,
+        functionName: 'nameExpires',
+        args: [getUnwrappedTokenId(domain)]
+      })) as BigNumber
+      console.log('Expiry time: ', expiry.toNumber())
+      setExpiryTime(expiry.toNumber() * 1000)
+    } catch (e) {
+      console.error('Failed to lookup expiry time.', e)
+      setRequestStatus(RequestStatus.NO_TOKEN)
     }
   }, [toast])
 
@@ -258,12 +279,13 @@ const App: React.FC = () => {
             )
           : (
               requestStatus === RequestStatus.NO_URI && (
-              <Alert status="warning" overflowWrap="anywhere">
-                <AlertIcon />
-                Cannot load the token URI
-                <br />
-                {tokenUri}
-              </Alert>
+              <VStack mb={'32px'}>
+                <Alert status="warning" overflowWrap="anywhere">
+                  <AlertIcon mr={2} />
+                  Cannot load the token metadata
+                </Alert>
+                <Button onClick={genMetadata}>Regenerate Metadata</Button>
+              </VStack>
               )
             )}
         {(requestStatus === RequestStatus.OK ||
@@ -300,6 +322,16 @@ const App: React.FC = () => {
       {requestStatus === RequestStatus.OK && tokenMeta && (
         <Domain meta={tokenMeta} />
       )}
+      {requestStatus === RequestStatus.OK && tokenMeta && isExpiryTimeInconsistent(tokenMeta, expiryTime) && (
+        <VStack>
+          <Alert status="error">
+            The domain metadata card is outdated
+          </Alert>
+          <Button w={'100%'} onClick={renewMetadata}>
+            Renew metadata
+          </Button>
+        </VStack>
+      ) }
 
       <ModalTransfer domain={domain} control={transferModalControl} owner={owner} onComplete={(to: string) => { wrapped ? setWrappedOwner(to) : setOwner(to) }}/>
       <ModalCanonicalName domain={domain} control={canonicalNameModalControl}/>

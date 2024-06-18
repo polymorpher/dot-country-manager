@@ -1,5 +1,6 @@
 import { type Abi } from 'abitype'
-import erc721ABI from '~/abis/erc721ABI.json'
+// import erc721ABI from '~/abis/erc721ABI.json'
+import BaseRegistgrarAbi from '~/abis/TLDBaseRegistrarImplementation.json'
 import NameWrapper from '~/abis/NameWrapper.json'
 import { type ContractConfig } from './types'
 
@@ -10,7 +11,7 @@ export const nameWrapperContract: ContractConfig = {
 
 export const baseRegistrarContract: ContractConfig = {
   address: import.meta.env.VITE_BASE_REGISTRAR_ADDRESS,
-  abi: erc721ABI as Abi
+  abi: BaseRegistgrarAbi as Abi
 }
 
 export const resolverContract: ContractConfig = {

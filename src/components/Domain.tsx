@@ -20,6 +20,22 @@ const processAttribute = (attribute: MetaAttribute): string => {
   }
   return attribute.value.toString()
 }
+
+export const isExpiryTimeInconsistent = (meta: Meta, expiryTime: number): boolean => {
+  if (!expiryTime) {
+    return false
+  }
+  for (const attr of meta.attributes ?? []) {
+    if (attr.trait_type === 'Expiration Date') {
+      const metaExpiry = Number(attr.value)
+      if (expiryTime !== metaExpiry) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
 const Domain: React.FC<DomainProps> = ({ meta }) => (
   <Card overflow="hidden" align={'center'} border={'none'} shadow={'none'} p={4}>
     <Image src={meta.image} maxW={320} alt="image" />
