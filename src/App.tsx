@@ -11,7 +11,7 @@ import {
   useDisclosure,
   useToast,
   Text,
-  VStack
+  VStack, StackDivider
 } from '@chakra-ui/react'
 import { useAccount, useConnect, useDisconnect, useSwitchNetwork, useNetwork } from 'wagmi'
 import { readContract, prepareWriteContract, writeContract } from '@wagmi/core'
@@ -68,8 +68,28 @@ const App: React.FC = () => {
   const canonicalNameModalControl = useDisclosure()
   const redirectModalControl = useDisclosure()
   const toast = useToast()
-  const { activateSubdomains, activateMail, /* genCert, renewCert, */ genMetadata, renewMetadata } = useDnsControl({ domain })
+  const { activateSubdomains, activateMail, genCert, renewCert, genMetadata, renewMetadata } = useDnsControl({ domain })
   const wrapped = owner === CONFIG.nameWrapperContract.address
+  const [dnsOperationPending, setDnsOperationPending] = useState(false)
+
+  const handleGenerateSSL = useCallback(async (): Promise<void> => {
+    setDnsOperationPending(true)
+    try {
+      await genCert()
+    } catch (ex: any) {
+      console.error(ex)
+    }
+    setDnsOperationPending(false)
+  }, [genCert])
+  const handleRenewSSL = useCallback(async () => {
+    setDnsOperationPending(true)
+    try {
+      await renewCert()
+    } catch (ex: any) {
+      console.error(ex)
+    }
+    setDnsOperationPending(false)
+  }, [renewCert])
 
   const handleDomainChange: React.ChangeEventHandler<HTMLInputElement> =
     debounce(async (e) => {
@@ -254,7 +274,7 @@ const App: React.FC = () => {
 
   return (
     <VStack width="full">
-      <VStack mb={8} align={'center'}>
+      <VStack mb={8} align={'center'} divider={<StackDivider borderColor='gray.200' />}>
         <Box textAlign="center">
           <Text pb={4}>Connected to {chain?.name} <br/> {address}</Text>
           <Button onClick={() => { disconnect() }}>Disconnect</Button>
@@ -292,8 +312,8 @@ const App: React.FC = () => {
           requestStatus === RequestStatus.NO_URI) &&
           ((wrapped && wrappedOwner === address) ||
             (!wrapped && owner === address)) && (
-            <VStack>
-              <HStack>
+            <VStack width="full">
+              <HStack width="full">
                 <Button flex={1} onClick={transferModalControl.onOpen}>Transfer</Button>
                 <Button flex={1} onClick={handleWrapClick}>
                   {wrapped ? 'Unwrap' : 'Wrap'}
@@ -301,7 +321,7 @@ const App: React.FC = () => {
               </HStack>
             </VStack>
         )}
-        {isDnsAccessible && <VStack>
+        {isDnsAccessible && <VStack width="full">
           <Button w={'100%'} onClick={canonicalNameModalControl.onOpen}>
             Configure Subdomain Alias
           </Button>
@@ -309,7 +329,15 @@ const App: React.FC = () => {
             Configure URL Redirect
           </Button>
         </VStack>}
-        {domain && <VStack>
+        {isDnsAccessible && <HStack width="full">
+          <Button w={'100%'} onClick={handleGenerateSSL}>
+            Generate SSL Cert
+          </Button>
+          <Button w={'100%'} onClick={handleRenewSSL}>
+            Renew SSL Cert
+          </Button>
+        </HStack>}
+        {domain && <VStack width="full">
           <Button w={'100%'} onClick={activateMail}>
             Activate Email Alias Service
           </Button>

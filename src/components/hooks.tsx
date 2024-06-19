@@ -85,16 +85,19 @@ export const useDnsControl = ({ domain }: { domain: string }): UseDnsControlRetu
           data: {
             completed,
             success,
-            error
+            error,
+            attempts,
+            wc
           }
-        } = await base.post(`${REGISTRAR_RELAY_BASE_API}/cert-job-lookup`, { domain: `${domain}.${tld}`, async: true })
+        } = await base.post(`${REGISTRAR_RELAY_BASE_API}/cert-job-lookup`, { domain: `${domain}.${tld}`, jobId })
         if (completed || error || success) {
           terminate = true
         }
         isCompleted = completed
         isSuccess = success
         err = error
-        await sleep(1500)
+        toast({ status: 'info', description: `Certificate provision still pending ... (${wc ? '*.' : ''}${domain}.${tld}, attempts: ${attempts})` })
+        await sleep(3000)
       } catch (ex: any) {
         console.error(ex)
         const error = ex?.response?.data?.error || ex.toString()
@@ -146,8 +149,8 @@ export const useDnsControl = ({ domain }: { domain: string }): UseDnsControlRetu
       const { data: { success, wcJobId: wcJob, nakedJobId: nakedJob, error } } = await base.post(`${REGISTRAR_RELAY_BASE_API}/renew-cert`, { domain: `${domain}.${tld}`, async: true })
       if (success) {
         toast({ status: 'success', description: `Successfully requested for renewal of SSL certificate (${domain}.${tld}). Waiting for completion...` })
-        const { wcJobId } = wcJob
-        const { nakedJobId } = nakedJob
+        const { jobId: wcJobId } = wcJob
+        const { jobId: nakedJobId } = nakedJob
         toast({ status: 'success', description: `Successfully requested for SSL certificate (${domain}.${tld}). Waiting for completion...` })
         certJobLookup(wcJobId).then(({ isSuccess, error }) => {
           if (isSuccess) {
