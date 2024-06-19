@@ -27,6 +27,7 @@ import { useDnsControl } from '~/components/hooks'
 import ModalRedirect from '~/components/ModalRedirect'
 import { DNS_MAINTAINERS } from '~/config'
 import { type BigNumber } from 'ethers'
+import ModalRenew from '~/components/ModalRenew'
 
 enum RequestStatus {
   OK = 0,
@@ -67,6 +68,7 @@ const App: React.FC = () => {
   const transferModalControl = useDisclosure()
   const canonicalNameModalControl = useDisclosure()
   const redirectModalControl = useDisclosure()
+  const renewModalControl = useDisclosure()
   const toast = useToast()
   const { activateSubdomains, activateMail, genCert, renewCert, genMetadata, renewMetadata } = useDnsControl({ domain })
   const wrapped = owner === CONFIG.nameWrapperContract.address
@@ -169,7 +171,6 @@ const App: React.FC = () => {
       console.log(`tokenUri ${uri.toString()}`)
 
       const meta: Meta = await fetch(uri.toString()).then(async (res) => await res.json())
-      console.log(meta)
       setTokenMeta(meta)
       setRequestStatus(RequestStatus.OK)
     } catch (e) {
@@ -269,24 +270,25 @@ const App: React.FC = () => {
   }, [isConnected, chain, switchNetwork])
 
   if (!isConnected) {
-    return <VStack>
-      <Text pb={8}>Please connect your wallet</Text>
-      {connectors.map((connector) => (
-        <Button
+    return (
+      <VStack>
+        <Text pb={8}>Please connect your wallet</Text>
+        {connectors.map((connector) => (
+          <Button
             maxW={200} w={'100%'}
               isDisabled={!connector.ready}
               key={connector.id}
               onClick={() => { connect({ connector }) }}
           >
-          {connector.name}
-          {isLoading &&
+            {connector.name}
+            {isLoading &&
                 connector.id === pendingConnector?.id &&
                 ' (...)'}
-        </Button>
-      ))}
-
-      {error && <div>{error.message}</div>}
-    </VStack>
+          </Button>
+        ))}
+        {error && <div>{error.message}</div>}
+      </VStack>
+    )
   }
   const isDnsAccessible: boolean = !!domain && ((owner?.toLowerCase() === address?.toLowerCase()) || (wrappedOwner?.toLowerCase() === address?.toLowerCase()) || DNS_MAINTAINERS.includes(address?.toLowerCase() ?? ''))
 
@@ -346,7 +348,7 @@ const App: React.FC = () => {
           <Button w={'100%'} onClick={redirectModalControl.onOpen}>
             Configure URL Redirect
           </Button>
-          <Button w={'100%'} onClick={redirectModalControl.onOpen}>
+          <Button w={'100%'} onClick={renewModalControl.onOpen}>
             Renew Domain
           </Button>
         </VStack>}
@@ -385,6 +387,7 @@ const App: React.FC = () => {
       <ModalTransfer domain={domain} control={transferModalControl} owner={owner} onComplete={(to: string) => { wrapped ? setWrappedOwner(to) : setOwner(to) }}/>
       <ModalCanonicalName domain={domain} control={canonicalNameModalControl}/>
       <ModalRedirect domain={domain} control={redirectModalControl}/>
+      <ModalRenew domain={domain} control={renewModalControl}/>
     </VStack>
   )
 }
