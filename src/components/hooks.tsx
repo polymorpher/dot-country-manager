@@ -96,8 +96,16 @@ export const useDnsControl = ({ domain }: { domain: string }): UseDnsControlRetu
         isCompleted = completed
         isSuccess = success
         err = error
-        toast({ status: 'info', description: `Certificate provision still pending ... (${wc ? '*.' : ''}${domain}.${tld}, attempts: ${attempts})` })
-        await sleep(3000)
+        if (attempts >= 3) {
+          toast({ status: 'info', description: `Too many failed attempts. Certificate provision service is likely busy. Please try again later. (${wc ? '*.' : ''}${domain}.${tld}, attempts: ${attempts})` })
+          terminate = true
+        } else {
+          toast({
+            status: 'info',
+            description: `Certificate provision still pending ... (${wc ? '*.' : ''}${domain}.${tld}, attempts: ${attempts})`
+          })
+          await sleep(3000 * (1 + Number(attempts)))
+        }
       } catch (ex: any) {
         console.error(ex)
         const error = ex?.response?.data?.error || ex.toString()

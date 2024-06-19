@@ -63,7 +63,7 @@ const App: React.FC = () => {
   const [expiryTime, setExpiryTime] = useState<number>(0)
   const [wrappedOwner, setWrappedOwner] = useState<string>()
   const [tokenMeta, setTokenMeta] = useState<Meta>()
-  const [tokenUri, setTokenUri] = useState<string>()
+  const [, setTokenUri] = useState<string>()
   const transferModalControl = useDisclosure()
   const canonicalNameModalControl = useDisclosure()
   const redirectModalControl = useDisclosure()
@@ -72,6 +72,24 @@ const App: React.FC = () => {
   const wrapped = owner === CONFIG.nameWrapperContract.address
   const [dnsOperationPending, setDnsOperationPending] = useState(false)
 
+  const handleGenMetadata = useCallback(async () => {
+    setDnsOperationPending(true)
+    try {
+      await genMetadata()
+    } catch (ex: any) {
+      console.error(ex)
+    }
+    setDnsOperationPending(false)
+  }, [genMetadata])
+  const handleRenewMetadata = useCallback(async () => {
+    setDnsOperationPending(true)
+    try {
+      await renewMetadata()
+    } catch (ex: any) {
+      console.error(ex)
+    }
+    setDnsOperationPending(false)
+  }, [renewMetadata])
   const handleGenerateSSL = useCallback(async (): Promise<void> => {
     setDnsOperationPending(true)
     try {
@@ -304,7 +322,7 @@ const App: React.FC = () => {
                   <AlertIcon mr={2} />
                   Cannot load the token metadata
                 </Alert>
-                <Button onClick={genMetadata}>Regenerate Metadata</Button>
+                <Button isDisabled={dnsOperationPending} onClick={handleGenMetadata}>Regenerate Metadata</Button>
               </VStack>
               )
             )}
@@ -328,20 +346,23 @@ const App: React.FC = () => {
           <Button w={'100%'} onClick={redirectModalControl.onOpen}>
             Configure URL Redirect
           </Button>
+          <Button w={'100%'} onClick={redirectModalControl.onOpen}>
+            Renew Domain
+          </Button>
         </VStack>}
         {isDnsAccessible && <HStack width="full">
-          <Button w={'100%'} onClick={handleGenerateSSL}>
+          <Button isDisabled={dnsOperationPending} w={'100%'} onClick={handleGenerateSSL}>
             Generate SSL Cert
           </Button>
-          <Button w={'100%'} onClick={handleRenewSSL}>
+          <Button isDisabled={dnsOperationPending} w={'100%'} onClick={handleRenewSSL}>
             Renew SSL Cert
           </Button>
         </HStack>}
         {domain && <VStack width="full">
-          <Button w={'100%'} onClick={activateMail}>
+          <Button w={'100%'} isDisabled={dnsOperationPending} onClick={activateMail}>
             Activate Email Alias Service
           </Button>
-          <Button w={'100%'} onClick={activateSubdomains}>
+          <Button w={'100%'} isDisabled={dnsOperationPending} onClick={activateSubdomains}>
             Activate Notion / Substack in Subdomains
           </Button>
         </VStack>}
@@ -355,7 +376,7 @@ const App: React.FC = () => {
           <Alert status="error">
             The domain metadata card is outdated
           </Alert>
-          <Button w={'100%'} onClick={renewMetadata}>
+          <Button isDisabled={dnsOperationPending} w={'100%'} onClick={handleRenewMetadata}>
             Renew metadata
           </Button>
         </VStack>
