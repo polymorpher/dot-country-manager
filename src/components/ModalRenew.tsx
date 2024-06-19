@@ -16,6 +16,8 @@ import { REGISTRAR_RELAY_BASE_API, tld } from '~/config'
 import React, { useState } from 'react'
 import axios from 'axios'
 import { useAccount, useNetwork } from 'wagmi'
+import * as CONFIG from '~/config'
+import { getUnwrappedTokenId } from '~/helpers/tokenId'
 const base = axios.create({ timeout: 15000 })
 
 const ModalRenew = ({ domain, control }: { domain: string, control: UseDisclosureReturn }): JSX.Element => {
@@ -28,6 +30,15 @@ const ModalRenew = ({ domain, control }: { domain: string, control: UseDisclosur
   const toast = useToast()
   const renew = async (data: any): Promise<void> => {
     try {
+      const now = new Date()
+      const d = new Date()
+      const targetTime = new Date(d.setMonth(d.getMonth() + durationInput))
+      const duration = Math.floor((targetTime.getTime() - now.getTime()) / 1000)
+      const config = await prepareWriteContract({
+        ...CONFIG.baseRegistrarContract,
+        functionName: 'renew',
+        args: [domain, duration]
+      })
       // TODO
       if (success) {
         toast({ status: 'success', description: `Successfully renewed ${domain}.${tld} for ${durationInput} months` })
