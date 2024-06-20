@@ -60,8 +60,8 @@ const ModalRenew = ({ domain, control }: { domain: string, control: UseDisclosur
       const config = await prepareWriteContract({
         ...CONFIG.registrarControllerContract,
         functionName: 'renew',
-        value: cost,
-        args: [domain, duration]
+        overrides: { value: cost },
+        args: [domain, duration.toString()]
       })
 
       const result = await writeContract(config)
