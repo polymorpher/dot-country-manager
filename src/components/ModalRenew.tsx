@@ -16,6 +16,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import * as CONFIG from '~/config'
 import { type BigNumber, ethers } from 'ethers'
 import { useNetwork } from 'wagmi'
+import { useDnsControl } from '~/components/hooks'
 
 const getDurationInSeconds = (months: number): number => {
   const now = new Date()
@@ -29,6 +30,7 @@ const ModalRenew = ({ domain, control }: { domain: string, control: UseDisclosur
   const [cost, setCost] = useState<string>('0')
   const { chain } = useNetwork()
   const { isOpen, onClose } = control
+  const { renewMetadata, renewCert } = useDnsControl({ domain })
 
   const toast = useToast()
   useEffect(() => {
@@ -60,19 +62,21 @@ const ModalRenew = ({ domain, control }: { domain: string, control: UseDisclosur
       const config = await prepareWriteContract({
         ...CONFIG.registrarControllerContract,
         functionName: 'renew',
-        overrides: { value: cost },
+        overrides: { value: ethers.BigNumber.from(cost) },
         args: [domain, duration.toString()]
       })
 
       const result = await writeContract(config)
       toast({ status: 'success', description: `Successfully renewed ${domain}.${tld} for ${durationInput} months. tx: ${result.hash}` })
+      await renewMetadata()
+      await renewCert()
       onClose()
     } catch (ex: any) {
       console.error(ex)
       const error = ex?.response?.data?.error || ex.toString()
       toast({ status: 'error', description: `Failed to renew domain. Error: ${error}` })
     }
-  }, [chain, cost, onClose, durationInput, toast, domain])
+  }, [chain, cost, onClose, durationInput, toast, domain, renewMetadata, renewCert])
 
   return <Modal isOpen={isOpen} onClose={onClose}>
     <ModalOverlay />
