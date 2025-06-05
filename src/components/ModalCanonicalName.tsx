@@ -33,7 +33,7 @@ const ModalCanonicalName = ({ domain, control }: { domain: string, control: UseD
     const signature = await signMessage({ message: `I want to map subdomain ${subdomain}.${domain}.${tld} to ${targetDomain}. This operation has to complete by timestamp ${deadline}` })
     console.log(signature)
     try {
-      const { data: { success } } = await base.post(`${REGISTRAR_RELAY_BASE_API}/cname`, {
+      const { data: { success } } = await base.post(`${REGISTRAR_RELAY_BASE_API}/dns/cname`, {
         deadline,
         subdomain,
         targetDomain,
